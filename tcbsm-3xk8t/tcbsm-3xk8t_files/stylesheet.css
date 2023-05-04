@@ -1,0 +1,247 @@
+.bold {
+    font-weight: bold;
+    line-height: 1.2
+    }
+.bold1 {
+    font-weight: bold
+    }
+.calibre {
+    display: block;
+    font-size: 1.66667em;
+    line-height: 1.2;
+    margin-bottom: 0;
+    margin-left: 5pt;
+    margin-right: 5pt;
+    margin-top: 0;
+    padding-left: 0;
+    padding-right: 0;
+    page-break-before: always
+    }
+.calibre1 {
+    display: block;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    text-align: justify;
+    text-indent: 1.5em
+    }
+.calibre2 {
+    color: inherit;
+    cursor: inherit;
+    text-decoration: inherit
+    }
+.calibre3 {
+    display: block
+    }
+.calibre4 {
+    display: block;
+    margin-top: 2em;
+    text-align: center
+    }
+.calibre5 {
+    height: auto;
+    width: auto
+    }
+.calibre6 {
+    display: block;
+    height: 2em
+    }
+.calibre7 {
+    font-size: 1.1em;
+    line-height: 1.2
+    }
+.calibre8 {
+    display: block;
+    height: 1em
+    }
+.calibre9 {
+    display: block;
+    text-align: left
+    }
+.calibre10 {
+    font-size: 1em;
+    line-height: 1.2
+    }
+.calibre11 {
+    color: blue;
+    cursor: pointer;
+    text-decoration: underline
+    }
+.calibre12 {
+    color: blue;
+    cursor: pointer;
+    line-height: 1.2;
+    text-decoration: underline
+    }
+.calibre13 {
+    display: block;
+    line-height: 1.2
+    }
+.calibre14 {
+    display: block;
+    margin-top: 1em;
+    text-align: center
+    }
+.calibre15 {
+    font-size: 1.2em;
+    line-height: 1.2
+    }
+.calibre16 {
+    display: block;
+    text-align: center
+    }
+.calibre17 {
+    display: block;
+    text-align: left;
+    text-indent: 0
+    }
+.calibre18 {
+    font-size: 0.675em;
+    line-height: 1.2
+    }
+.calibre19 {
+    display: block;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    text-align: center;
+    text-indent: 1.5em
+    }
+.calibre20 {
+    display: block;
+    margin-top: 2em;
+    text-align: left
+    }
+.calibre21 {
+    display: block;
+    margin-bottom: 0;
+    margin-left: 2em;
+    margin-right: 0;
+    margin-top: 0;
+    text-align: justify
+    }
+.calibre22 {
+    display: block;
+    text-align: right
+    }
+.calibre23 {
+    display: block;
+    margin-top: 2em
+    }
+.calibre24 {
+    font-size: 1em;
+    line-height: 1.2;
+    vertical-align: super
+    }
+.calibre25 {
+    display: block;
+    margin-top: 1em;
+    text-align: left
+    }
+.calibre26 {
+    display: block;
+    text-align: left;
+    text-indent: 1em
+    }
+.calibre27 {
+    font-size: 0.675em;
+    line-height: 1.2;
+    vertical-align: super
+    }
+.calibre28 {
+    display: block;
+    margin-top: 1em
+    }
+.calibre29 {
+    display: block;
+    margin-left: 1em;
+    text-indent: -1em
+    }
+.calibre30 {
+    display: block;
+    font-size: 1.2em;
+    font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 0.67em;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 2em;
+    page-break-before: always;
+    text-align: center
+    }
+.calibre31 {
+    font-size: 0.91667em;
+    line-height: 1.2
+    }
+.calibre32 {
+    display: block;
+    font-size: 1.2em;
+    font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 0.83em;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 2em;
+    page-break-before: always;
+    text-align: center
+    }
+.calibre33 {
+    font-size: 0.83333em;
+    line-height: 1.2
+    }
+.calibre34 {
+    display: block;
+    page-break-after: always
+    }
+.calibre35 {
+    display: block;
+    margin-top: 1px;
+    text-align: left
+    }
+.calibre36 {
+    display: block;
+    height: 1px
+    }
+.calibre37 {
+    display: block;
+    margin-top: 1px;
+    text-align: left;
+    text-indent: 10px
+    }
+.calibre38 {
+    display: block;
+    margin-top: 1px;
+    text-align: left;
+    text-indent: 20px
+    }
+.calibre39 {
+    display: block;
+    font-size: 1.66667em;
+    line-height: 1.2;
+    margin-bottom: 0;
+    margin-left: 5pt;
+    margin-right: 5pt;
+    margin-top: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    text-align: center
+    }
+.italic {
+    font-style: italic
+    }
+.italic1 {
+    font-style: italic;
+    line-height: 1.2
+    }
+.mbppagebreak {
+    display: block;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    page-break-after: always
+    }
