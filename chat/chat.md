@@ -1,5 +1,5 @@
 - 参考
-    - 以下是widget的kotlin源码
+    - 以下是widget的kotlin源码,名为GameWidgetProvider.kt
         - ```javascript
 package com.example.test_v10
 
@@ -142,7 +142,7 @@ suspend fun fetchData(): GameData = withContext(Dispatchers.IO) {
 
 
 ```
-    - 以下是包含输入框的widget源码
+    - 以下是包含输入框的widget源码,文件名为game_widget_layout.html
         - ```javascript
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -472,5 +472,4 @@ suspend fun fetchData(): GameData = withContext(Dispatchers.IO) {
 
 </RelativeLayout>
 ```
-- 我如何在安卓里点击某个widget的输入框,实现如下要求,给我相关代码和具体步骤
-    - 打开一个mainactivty页面作为背景,然后前景是该输入框,并能输入,并将输入发送到远端服务器
+
