@@ -1,6 +1,7 @@
-- 参考
-    - 以下是widget的kotlin源码,名为GameWidgetProvider.kt
-        - ```javascript
+- 以下是我的MainActivity.kt
+- 以下是activity_main.xml
+- 以下是GameWidgetProvider.kt
+    - ```javascript
 package com.example.test_v10
 
 import android.annotation.SuppressLint
@@ -24,6 +25,11 @@ import kotlinx.coroutines.delay
 
 //输出日志用
 import android.util.Log // 这个是新加的，用于输出日志
+
+//输入框
+import android.app.PendingIntent
+import android.content.Intent
+
 
 
 
@@ -86,16 +92,30 @@ internal fun update_game_widget(
         views.setProgressBar(R.id.health_bar, 100, gameData.player_hp.toInt(), false)
         views.setProgressBar(R.id.blue_bar, 100, gameData.player_mp.toInt(), false)
         views.setTextViewText(R.id.input_info_text, gameData.inputInfo)
+
+        // 设置点击事件和跳转到 MainActivity
+        val intent = Intent(context, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(context, appWidgetId, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        views.setOnClickPendingIntent(R.id.input_info_text, pendingIntent)
+
         views.setTextViewText(R.id.goal_text, gameData.goal)
         views.setProgressBar(R.id.boss_health_bar, 100, gameData.bossHp.toInt(), false)
         views.setTextViewText(R.id.project_text, gameData.project)
         views.setTextViewText(R.id.kill_num_text, gameData.record)
 
-
         appWidgetManager.updateAppWidget(appWidgetId, views) //
     }
 }
 
+
+
+//点击输入辅助函数
+private fun getPendingIntent(context: Context, appWidgetId: Int): PendingIntent {
+    val intent = Intent(context, MainActivity::class.java) // 替换为你的MainActivity类
+    intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+    intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(appWidgetId))
+    return PendingIntent.getActivity(context, appWidgetId, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+}
 
 
 
@@ -142,8 +162,8 @@ suspend fun fetchData(): GameData = withContext(Dispatchers.IO) {
 
 
 ```
-    - 以下是包含输入框的widget源码,文件名为game_widget_layout.html
-        - ```javascript
+- 以下是game_widget_layout.html
+    - ```javascript
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -472,4 +492,3 @@ suspend fun fetchData(): GameData = withContext(Dispatchers.IO) {
 
 </RelativeLayout>
 ```
-
