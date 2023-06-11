@@ -1,20 +1,20 @@
 <!-- coding:utf-8 -->
 
 - 文件夹:C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10
-    - 这是 AppDatabase.kt
-        - ```javascript
+    - here is code with AppDatabase.kt
+        - ```kotlin
 package com.example.test_v10
 
 import androidx.room.Database
-import androidx.room.RoomDatabase 
+import androidx.room.RoomDatabase
 
 @Database(entities = [Project::class], version = 1)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun projectDao(): ProjectDao
 }
         ```
-    - 这是 GameWidgetProvider.kt
-        - ```javascript
+    - here is code with GameWidgetProvider.kt
+        - ```kotlin
 package com.example.test_v10
 
 import android.annotation.SuppressLint
@@ -104,20 +104,26 @@ internal fun update_game_widget(
         views.setTextViewText(R.id.ep_text, "EP: ${gameData.ep.toString()}")
         views.setProgressBar(R.id.health_bar, 100, gameData.player_hp.toInt(), false)
         views.setProgressBar(R.id.blue_bar, 100, gameData.player_mp.toInt(), false)
+
+        // 设置点击事件，跳转到 MainActivity 输入
+        val mainIntent = Intent(context, MainActivity::class.java)
+        val mainPendingIntent = PendingIntent.getActivity(context, appWidgetId * 10 + 1, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+        views.setOnClickPendingIntent(R.id.input_info_text, mainPendingIntent)
+
+
         views.setTextViewText(R.id.input_info_text, gameData.inputInfo)
         views.setTextViewText(R.id.goal_text, gameData.goal)
         views.setProgressBar(R.id.boss_health_bar, 100, gameData.bossHp.toInt(), false)
         views.setTextViewText(R.id.project_text, gameData.project)
         views.setTextViewText(R.id.kill_num_text, gameData.record)
 
-        // 设置点击事件，跳转到 MainActivity 输入
-        val mainIntent = Intent(context, MainActivity::class.java)
-        val mainPendingIntent = PendingIntent.getActivity(context, appWidgetId, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT)
-        views.setOnClickPendingIntent(R.id.input_info_text, mainPendingIntent)
 
+
+
+        /*
         // 设置点击事件，设置项目，跳转到 ProjectActivity
         val projectIntent = Intent(context, ProjectActivity::class.java)
-        val projectPendingIntent = PendingIntent.getActivity(context, appWidgetId, projectIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+        val projectPendingIntent = PendingIntent.getActivity(context, appWidgetId * 10 + 2, projectIntent, PendingIntent.FLAG_UPDATE_CURRENT)
         views.setOnClickPendingIntent(R.id.project_text, projectPendingIntent)
 
 
@@ -129,7 +135,13 @@ internal fun update_game_widget(
 
 
 
+
+
         views.setTextViewText(R.id.project_text, currentProject?.name)
+
+         */
+
+
 
 
 
@@ -193,8 +205,8 @@ suspend fun fetchData(): GameData = withContext(Dispatchers.IO) {
 
 
         ```
-    - 这是 HelloworldWidget.kt
-        - ```javascript
+    - here is code with HelloworldWidget.kt
+        - ```kotlin
 package com.example.test_v10
 
 import android.appwidget.AppWidgetManager
@@ -238,8 +250,8 @@ internal fun updateAppWidget(  //小部件更新对象
     appWidgetManager.updateAppWidget(appWidgetId, views)
 }
         ```
-    - 这是 MainActivity.kt
-        - ```javascript
+    - here is code with MainActivity.kt
+        - ```kotlin
 package com.example.test_v10
 
 import androidx.appcompat.app.AppCompatActivity
@@ -293,8 +305,8 @@ class MainActivity : AppCompatActivity() {
 
 
         ```
-    - 这是 Project.kt
-        - ```javascript
+    - here is code with Project.kt
+        - ```kotlin
 package com.example.test_v10
 
 import androidx.room.Entity
@@ -316,8 +328,8 @@ data class Project(
 )
 
         ```
-    - 这是 ProjectActivity.kt
-        - ```javascript
+    - here is code with ProjectActivity.kt
+        - ```kotlin
 package com.example.test_v10
 
 import android.os.Bundle
@@ -342,8 +354,8 @@ class ProjectActivity : AppCompatActivity() {
 }
 
         ```
-    - 这是 ProjectAdapter.kt
-        - ```javascript
+    - here is code with ProjectAdapter.kt
+        - ```kotlin
 package com.example.test_v10
 
 import android.view.View
@@ -388,8 +400,8 @@ class ProjectAdapter(private val projects: List<Project>, private val listener: 
 }
 
         ```
-    - 这是 ProjectDao.kt
-        - ```javascript
+    - here is code with ProjectDao.kt
+        - ```kotlin
 package com.example.test_v10
 
 import androidx.room.Dao
@@ -406,8 +418,8 @@ interface ProjectDao {
 }
 
         ```
-    - 这是 ProjectListFragment.kt
-        - ```javascript
+    - here is code with ProjectListFragment.kt
+        - ```kotlin
 package com.example.test_v10
 
 import android.view.LayoutInflater
@@ -458,8 +470,8 @@ class ProjectListFragment : Fragment(), ProjectAdapter.OnItemClickListener {
 }
 
         ```
-    - 这是 WidgetProvider.kt
-        - ```javascript
+    - here is code with WidgetProvider.kt
+        - ```kotlin
 package com.example.test_v10
 
 import android.appwidget.AppWidgetManager
@@ -478,8 +490,8 @@ class WidgetProvider : AppWidgetProvider() {
 
         ```
 - 文件夹:C:\Local_dev\test_v10\app\src\main\res\layout
-    - 这是 activity_main.xml
-        - ```javascript
+    - here is code with activity_main.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -508,8 +520,8 @@ class WidgetProvider : AppWidgetProvider() {
 </FrameLayout>
 
         ```
-    - 这是 activity_project.xml
-        - ```javascript
+    - here is code with activity_project.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -539,8 +551,8 @@ class WidgetProvider : AppWidgetProvider() {
 </androidx.constraintlayout.widget.ConstraintLayout>
 
         ```
-    - 这是 fragment_project_list.xml
-        - ```javascript
+    - here is code with fragment_project_list.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.recyclerview.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -550,8 +562,8 @@ class WidgetProvider : AppWidgetProvider() {
     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
         ```
-    - 这是 game_widget_layout.xml
-        - ```javascript
+    - here is code with game_widget_layout.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -881,8 +893,8 @@ class WidgetProvider : AppWidgetProvider() {
 </RelativeLayout>
 
         ```
-    - 这是 input_layout.xml
-        - ```javascript
+    - here is code with input_layout.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -900,8 +912,8 @@ class WidgetProvider : AppWidgetProvider() {
 </RelativeLayout>
 
         ```
-    - 这是 project_item.xml
-        - ```javascript
+    - here is code with project_item.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -920,8 +932,8 @@ class WidgetProvider : AppWidgetProvider() {
 </LinearLayout>
 
         ```
-    - 这是 widget_layout.xml
-        - ```javascript
+    - here is code with widget_layout.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -937,27 +949,9 @@ class WidgetProvider : AppWidgetProvider() {
 </LinearLayout>
 
         ```
-- 文件夹:C:\Local_dev\test_v10\app\src\main\res\main
-- 文件夹:C:\Local_dev\test_v10\app\src\main\res\menu
-    - 这是 bottom_navigation_menu.xml
-        - ```javascript
-<?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/navigation_project_list"
-        android:icon="@drawable/ic_project_list"
-    android:title="项目列表" />
-
-    <item
-        android:id="@+id/navigation_project_overview"
-        android:icon="@drawable/ic_project_overview"
-    android:title="项目总览" />
-</menu>
-
-        ```
 - 文件夹:C:\Local_dev\test_v10\app\src\main\res\xml
-    - 这是 backup_rules.xml
-        - ```javascript
+    - here is code with backup_rules.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?><!--
    Sample backup rules file; uncomment and customize as necessary.
    See https://developer.android.com/guide/topics/data/autobackup
@@ -972,8 +966,8 @@ class WidgetProvider : AppWidgetProvider() {
 -->
 </full-backup-content>
         ```
-    - 这是 data_extraction_rules.xml
-        - ```javascript
+    - here is code with data_extraction_rules.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?><!--
    Sample data extraction rules file; uncomment and customize as necessary.
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
@@ -994,8 +988,8 @@ class WidgetProvider : AppWidgetProvider() {
     -->
 </data-extraction-rules>
         ```
-    - 这是 game_widget_info.xml
-        - ```javascript
+    - here is code with game_widget_info.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="350dp"
@@ -1004,8 +998,8 @@ class WidgetProvider : AppWidgetProvider() {
     android:initialLayout="@layout/game_widget_layout" />
 
         ```
-    - 这是 widget_provider.xml
-        - ```javascript
+    - here is code with widget_provider.xml
+        - ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="100dp"
