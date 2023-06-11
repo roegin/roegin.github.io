@@ -6,7 +6,7 @@
 package com.example.test_v10
 
 import androidx.room.Database
-import androidx.room.RoomDatabase
+import androidx.room.RoomDatabase //
 
 @Database(entities = [Project::class], version = 1)
 abstract class AppDatabase : RoomDatabase() {
