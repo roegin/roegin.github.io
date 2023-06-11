@@ -1,0 +1,583 @@
+
+      <h1>项目文件</h1>
+      <h2>Java文件</h2>
+      
+      <h2>Kotlin文件</h2>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\AppDatabase.kt</h3>
+        <pre>package com.example.test_v10
+
+import androidx.room.Database
+import androidx.room.RoomDatabase
+
+@Database(entities = [Project::class], version = 1)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun projectDao(): ProjectDao
+}</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\GameWidgetProvider.kt</h3>
+        <pre>package com.example.test_v10
+
+import android.annotation.SuppressLint
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
+import android.content.Context
+import android.widget.RemoteViews
+import com.google.gson.Gson
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+
+
+//
+import kotlinx.coroutines.*
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
+
+//输出日志用
+import android.util.Log // 这个是新加的，用于输出日志
+
+//输入框
+import android.app.PendingIntent
+import android.content.Intent
+
+
+
+
+class GameWidgetProvider : HelloworldWidget() {
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        for (appWidgetId in appWidgetIds) {
+            update_game_widget(context, appWidgetManager, appWidgetId)
+        }
+    }
+
+    private var updateJob: Job? = null
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+
+        updateJob?.cancel()
+        updateJob = GlobalScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                Log.d(&quot;GameWidgetUpdate&quot;, &quot;start onenable&quot;)
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val appWidgetIds = appWidgetManager.getAppWidgetIds(ComponentName(context.packageName, javaClass.name))
+    
+                for (appWidgetId in appWidgetIds) {
+                    update_game_widget(context, appWidgetManager, appWidgetId)
+                }
+    
+                delay(60_000L)  // Wait for 1 minute before the next update
+            }
+        }
+    }
+    
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+    
+        updateJob?.cancel()
+    }
+}
+
+//@SuppressLint(&quot;RemoteViewLayout&quot;)
+internal fun update_game_widget(
+    context: Context,
+    appWidgetManager: AppWidgetManager,
+    appWidgetId: Int
+) {
+    GlobalScope.launch(Dispatchers.Main) {
+        Log.d(&quot;GameWidgetUpdate&quot;, &quot;await fetchdata&quot;)
+        val gameData = fetchData()  // Fetch data from the API
+
+        Log.d(&quot;GameWidgetUpdate&quot;, &quot;Fetched game data: $gameData&quot;) // 输出解析后的 GameData 对象
+
+        val views = RemoteViews(context.packageName, R.layout.game_widget_layout)
+
+        // Update views with fetched data
+        views.setTextViewText(R.id.lv_text, &quot;LV: ${gameData.lv.toString()}&quot;)
+        views.setTextViewText(R.id.ep_text, &quot;EP: ${gameData.ep.toString()}&quot;)
+        views.setProgressBar(R.id.health_bar, 100, gameData.player_hp.toInt(), false)
+        views.setProgressBar(R.id.blue_bar, 100, gameData.player_mp.toInt(), false)
+        views.setTextViewText(R.id.input_info_text, gameData.inputInfo)
+        views.setTextViewText(R.id.goal_text, gameData.goal)
+        views.setProgressBar(R.id.boss_health_bar, 100, gameData.bossHp.toInt(), false)
+        views.setTextViewText(R.id.project_text, gameData.project)
+        views.setTextViewText(R.id.kill_num_text, gameData.record)
+
+        // 设置点击事件，跳转到 MainActivity 输入
+        val mainIntent = Intent(context, MainActivity::class.java)
+        val mainPendingIntent = PendingIntent.getActivity(context, appWidgetId, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+        views.setOnClickPendingIntent(R.id.input_info_text, mainPendingIntent)
+
+        // 设置点击事件，设置项目，跳转到 ProjectActivity
+        val projectIntent = Intent(context, ProjectActivity::class.java)
+        val projectPendingIntent = PendingIntent.getActivity(context, appWidgetId, projectIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+        views.setOnClickPendingIntent(R.id.project_text, projectPendingIntent)
+
+
+        //替换项目标题
+        val sharedPreferences = context.getSharedPreferences(&quot;current_project&quot;, Context.MODE_PRIVATE)
+        val gson = Gson()
+        val json = sharedPreferences.getString(&quot;current_project&quot;, null)
+        val currentProject = gson.fromJson(json, Project::class.java)
+
+
+
+        views.setTextViewText(R.id.project_text, currentProject?.name)
+
+
+
+        appWidgetManager.updateAppWidget(appWidgetId, views) //
+    }
+}
+
+
+
+//点击输入辅助函数
+private fun getPendingIntent(context: Context, appWidgetId: Int): PendingIntent {
+    val intent = Intent(context, MainActivity::class.java) // 替换为你的MainActivity类
+    intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+    intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(appWidgetId))
+    return PendingIntent.getActivity(context, appWidgetId, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+}
+
+
+
+//OKHTTP
+data class GameData(
+    val player_hp: String,
+    val player_mp: String,
+    val lv: String,
+    val ep: String,
+    val inputInfo: String,
+    val goal: String,
+    val bossHp: String,
+    val project: String,
+    val record: String
+)
+
+//fetchdata
+suspend fun fetchData(): GameData = withContext(Dispatchers.IO) {
+    val client = OkHttpClient()
+
+    val request = Request.Builder()
+        .url(&quot;https://alex.shinestu.com/ad_game/get_data&quot;)  // Replace with your API URL
+        .build()
+
+    Log.d(&quot;GameWidgetUpdate&quot;, &quot;new request&quot;)
+    try {
+        client.newCall(request).execute().use { response -&gt;
+            Log.d(&quot;GameWidgetUpdate&quot;, &quot;already get fetchdata&quot;)
+            val json = response.body?.string()
+
+            Log.d(&quot;GameDataFetch&quot;, &quot;JSON from server: $json&quot;) // 输出获取的 JSON 数据
+
+            val gson = Gson()
+
+            gson.fromJson(json, GameData::class.java)
+        }
+    } catch (e: Exception) {
+        Log.e(&quot;GameWidgetUpdate&quot;, &quot;Failed to fetch data&quot;, e)
+        GameData(&quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;)  // Return a default GameData if fetch failed
+    }
+}
+
+
+
+
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\HelloworldWidget.kt</h3>
+        <pre>package com.example.test_v10
+
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.Context
+import android.widget.RemoteViews
+
+/**
+ * Implementation of App Widget functionality.
+ */
+open class HelloworldWidget : AppWidgetProvider() {
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        for (appWidgetId in appWidgetIds) {
+            updateAppWidget(context, appWidgetManager, appWidgetId)
+        }
+    }
+
+
+    override fun onEnabled(context: Context) {
+        // Enter relevant functionality for when the first widget is created
+    }
+
+    override fun onDisabled(context: Context) {
+        // Enter relevant functionality for when the last widget is disabled
+    }
+}
+
+internal fun updateAppWidget(  //小部件更新对象
+    context: Context,
+    appWidgetManager: AppWidgetManager,
+    appWidgetId: Int,
+) {
+
+    val views = RemoteViews(context.packageName, R.layout.widget_layout)
+
+    //更新
+    appWidgetManager.updateAppWidget(appWidgetId, views)
+}</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\MainActivity.kt</h3>
+        <pre>package com.example.test_v10
+
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+
+//输入框
+import android.app.PendingIntent
+import android.content.Intent
+import android.view.inputmethod.EditorInfo
+import android.widget.FrameLayout
+import android.widget.RelativeLayout
+import android.widget.EditText
+
+
+
+class MainActivity : AppCompatActivity() {
+    private lateinit var inputEditText: EditText
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        // 设置背景
+        val backgroundView = findViewById&lt;FrameLayout&gt;(R.id.background_view)
+        backgroundView.setBackgroundResource(R.drawable.project) // 替换为你的背景图片
+        backgroundView.isClickable = true
+
+
+        // 设置前景输入框
+        val foregroundView = findViewById&lt;RelativeLayout&gt;(R.id.foreground_view)
+        layoutInflater.inflate(R.layout.input_layout, foregroundView, true)
+
+        // 获取输入框
+        inputEditText = findViewById(R.id.input_edit_text)
+        inputEditText.setOnEditorActionListener { _, actionId, _ -&gt;
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                sendInputToServer(inputEditText.text.toString()) // 将输入发送到远端服务器
+                inputEditText.clearFocus()
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    private fun sendInputToServer(input: String) {
+        // 将输入发送到远端服务器的逻辑
+        // ...
+    }
+}
+
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\Project.kt</h3>
+        <pre>package com.example.test_v10
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity
+data class Project(
+    @PrimaryKey(autoGenerate = true) val id: Int,
+    val name: String,
+    val miro_board_id: String,
+    val miro_board_link: String,
+    val total_goals_num: Int,
+    val completed_goals_num: Int,
+    val process: Double,
+    val dead_line: String,
+    val start_date: String,
+    val end_date: String,
+    val time_schedule: Double
+)
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\ProjectActivity.kt</h3>
+        <pre>package com.example.test_v10
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import com.example.test_v10.ProjectListFragment
+
+
+
+class ProjectActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_project)
+
+        val projectName = intent.getStringExtra(&quot;project_name&quot;)
+
+        //显示projectlist fragment
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, ProjectListFragment())
+            .commit()
+
+    }
+}
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\ProjectAdapter.kt</h3>
+        <pre>package com.example.test_v10
+
+import android.view.View
+import android.view.ViewGroup
+import android.view.LayoutInflater
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+
+
+class ProjectAdapter(private val projects: List&lt;Project&gt;, private val listener: OnItemClickListener) : RecyclerView.Adapter&lt;ProjectAdapter.ProjectViewHolder&gt;() {
+
+    inner class ProjectViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView), View.OnClickListener {
+        val projectName: TextView = itemView.findViewById(R.id.project_name)
+
+        init {
+            itemView.setOnClickListener(this)
+        }
+
+        override fun onClick(v: View?) { //sdsd
+            val position = adapterPosition
+            if (position != RecyclerView.NO_POSITION) {
+                listener.onItemClick(projects[position])
+            }
+        }
+    }
+
+    interface OnItemClickListener {
+        fun onItemClick(project: Project)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProjectViewHolder {
+        val itemView = LayoutInflater.from(parent.context).inflate(R.layout.project_item, parent, false)
+        return ProjectViewHolder(itemView)
+    }
+
+    override fun onBindViewHolder(holder: ProjectViewHolder, position: Int) {
+        val currentProject = projects[position]
+        holder.projectName.text = currentProject.name
+    }
+
+    override fun getItemCount() = projects.size
+}
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\ProjectDao.kt</h3>
+        <pre>package com.example.test_v10
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+
+@Dao
+interface ProjectDao {
+    @Query(&quot;SELECT * FROM project&quot;)
+    fun getAll(): List&lt;Project&gt;
+
+    @Insert
+    fun insertAll(vararg projects: Project)
+}
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\ProjectListFragment.kt</h3>
+        <pre>package com.example.test_v10
+
+import android.view.LayoutInflater
+
+import android.content.Context
+import android.os.Bundle
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.room.Room
+import com.google.gson.Gson
+
+
+class ProjectListFragment : Fragment(), ProjectAdapter.OnItemClickListener {
+
+    private lateinit var projectDao: ProjectDao
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        val view = inflater.inflate(R.layout.fragment_project_list, container, false)
+
+        val recyclerView = view.findViewById&lt;RecyclerView&gt;(R.id.recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(context)
+
+        val db = Room.databaseBuilder(
+            requireContext(),
+            AppDatabase::class.java, &quot;database-name&quot;
+        ).build()
+        projectDao = db.projectDao()
+
+        val projects = projectDao.getAll()
+        val adapter = ProjectAdapter(projects, this)
+        recyclerView.adapter = adapter
+
+        return view
+    }
+
+    override fun onItemClick(project: Project) {
+        // Save the current project to internal storage
+        val sharedPreferences = requireActivity().getSharedPreferences(&quot;current_project&quot;, Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        val gson = Gson()
+        val json = gson.toJson(project)
+        editor.putString(&quot;current_project&quot;, json)
+        editor.apply()
+    }
+}
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10\WidgetProvider.kt</h3>
+        <pre>package com.example.test_v10
+
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.Context
+import android.widget.RemoteViews
+
+class WidgetProvider : AppWidgetProvider() {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        for (appWidgetId in appWidgetIds) {
+            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+    }
+}
+</pre>
+      
+      <h2>XML文件</h2>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\res\xml\backup_rules.xml</h3>
+        <pre>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&lt;!--
+   Sample backup rules file; uncomment and customize as necessary.
+   See https://developer.android.com/guide/topics/data/autobackup
+   for details.
+   Note: This file is ignored for devices older that API 31
+   See https://developer.android.com/about/versions/12/backup-restore
+--&gt;
+&lt;full-backup-content&gt;
+    &lt;!--
+   &lt;include domain=&quot;sharedpref&quot; path=&quot;.&quot;/&gt;
+   &lt;exclude domain=&quot;sharedpref&quot; path=&quot;device.xml&quot;/&gt;
+--&gt;
+&lt;/full-backup-content&gt;</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\res\xml\data_extraction_rules.xml</h3>
+        <pre>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&lt;!--
+   Sample data extraction rules file; uncomment and customize as necessary.
+   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   for details.
+--&gt;
+&lt;data-extraction-rules&gt;
+    &lt;cloud-backup&gt;
+        &lt;!-- TODO: Use &lt;include&gt; and &lt;exclude&gt; to control what is backed up.
+        &lt;include .../&gt;
+        &lt;exclude .../&gt;
+        --&gt;
+    &lt;/cloud-backup&gt;
+    &lt;!--
+    &lt;device-transfer&gt;
+        &lt;include .../&gt;
+        &lt;exclude .../&gt;
+    &lt;/device-transfer&gt;
+    --&gt;
+&lt;/data-extraction-rules&gt;</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\res\xml\game_widget_info.xml</h3>
+        <pre>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;appwidget-provider xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;
+    android:minWidth=&quot;350dp&quot;
+    android:minHeight=&quot;100dp&quot;
+    android:updatePeriodMillis=&quot;6000&quot;
+    android:initialLayout=&quot;@layout/game_widget_layout&quot; /&gt;
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\res\xml\widget_provider.xml</h3>
+        <pre>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;appwidget-provider xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;
+    android:minWidth=&quot;100dp&quot;
+    android:minHeight=&quot;100dp&quot;
+    android:updatePeriodMillis=&quot;60000&quot;
+    android:initialLayout=&quot;@layout/widget_layout&quot; /&gt;
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\res\xml\backup_rules.xml</h3>
+        <pre>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&lt;!--
+   Sample backup rules file; uncomment and customize as necessary.
+   See https://developer.android.com/guide/topics/data/autobackup
+   for details.
+   Note: This file is ignored for devices older that API 31
+   See https://developer.android.com/about/versions/12/backup-restore
+--&gt;
+&lt;full-backup-content&gt;
+    &lt;!--
+   &lt;include domain=&quot;sharedpref&quot; path=&quot;.&quot;/&gt;
+   &lt;exclude domain=&quot;sharedpref&quot; path=&quot;device.xml&quot;/&gt;
+--&gt;
+&lt;/full-backup-content&gt;</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\res\xml\data_extraction_rules.xml</h3>
+        <pre>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&lt;!--
+   Sample data extraction rules file; uncomment and customize as necessary.
+   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   for details.
+--&gt;
+&lt;data-extraction-rules&gt;
+    &lt;cloud-backup&gt;
+        &lt;!-- TODO: Use &lt;include&gt; and &lt;exclude&gt; to control what is backed up.
+        &lt;include .../&gt;
+        &lt;exclude .../&gt;
+        --&gt;
+    &lt;/cloud-backup&gt;
+    &lt;!--
+    &lt;device-transfer&gt;
+        &lt;include .../&gt;
+        &lt;exclude .../&gt;
+    &lt;/device-transfer&gt;
+    --&gt;
+&lt;/data-extraction-rules&gt;</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\res\xml\game_widget_info.xml</h3>
+        <pre>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;appwidget-provider xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;
+    android:minWidth=&quot;350dp&quot;
+    android:minHeight=&quot;100dp&quot;
+    android:updatePeriodMillis=&quot;6000&quot;
+    android:initialLayout=&quot;@layout/game_widget_layout&quot; /&gt;
+</pre>
+      
+        <h3>C:\Local_dev\test_v10\app\src\main\res\xml\widget_provider.xml</h3>
+        <pre>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;appwidget-provider xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;
+    android:minWidth=&quot;100dp&quot;
+    android:minHeight=&quot;100dp&quot;
+    android:updatePeriodMillis=&quot;60000&quot;
+    android:initialLayout=&quot;@layout/widget_layout&quot; /&gt;
+</pre>
+      
+    
