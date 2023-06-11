@@ -16,8 +16,7 @@ public class GameData {
     private String project;
     private String record;
 
-    public GameData(String player_hp, String player_mp, String lv, String ep, String inputInfo, String goal, String bossHp, String project, String record) {
-        // 构造函数的实现
+    public GameData(String s, String s1, String s2, String s3, String s4, String s5, String s6, String s7, String s8) {
     }
 
     public String getPlayer_hp() {
@@ -93,6 +92,7 @@ public class GameData {
     }
 }
 
+
         ```
     - here is code with GameWidgetProvider.java
         - ```java
@@ -108,6 +108,7 @@ import android.util.Log;
 import android.widget.RemoteViews;
 
 import com.example.ad_game_java.GameData;
+import com.example.ad_game_java.R;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Timer;
@@ -117,8 +118,6 @@ import java.io.IOException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import com.example.ad_game_java.R;
-
 
 
 public class GameWidgetProvider extends AppWidgetProvider {
@@ -178,29 +177,25 @@ public class GameWidgetProvider extends AppWidgetProvider {
         Log.d("GameWidgetUpdate", "await fetchdata");
         new Thread(() -> {
             GameData gameData = fetchData();  // Fetch data from the API
+
             Log.d("GameWidgetUpdate", "Fetched game data: " + gameData); // 输出解析后的 GameData 对象
+
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.game_widget_layout);
+
             // Update views with fetched data
             views.setTextViewText(R.id.lv_text, "LV: " + gameData.getLv());
             views.setTextViewText(R.id.ep_text, "EP: " + gameData.getEp());
             views.setProgressBar(R.id.health_bar, 100, Integer.parseInt(gameData.getPlayer_hp()), false);
             views.setProgressBar(R.id.blue_bar, 100, Integer.parseInt(gameData.getPlayer_mp()), false);
-            views.setCharSequence(R.id.input_info_button, "setText", gameData.getInputInfo());
+            views.setTextViewText(R.id.input_info_text, gameData.getInputInfo());
             views.setTextViewText(R.id.goal_text, gameData.getGoal());
             views.setProgressBar(R.id.boss_health_bar, 100, Integer.parseInt(gameData.getBossHp()), false);
             views.setTextViewText(R.id.project_text, gameData.getProject());
             views.setTextViewText(R.id.kill_num_text, gameData.getRecord());
 
-            // Create an Intent that will open MainActivity
-            Intent intent = new Intent(context, MainActivity.class);
-            PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-            views.setOnClickPendingIntent(R.id.input_info_button, pendingIntent);
-
             appWidgetManager.updateAppWidget(appWidgetId, views);
         }).start();
     }
-
-
 
     public GameData fetchData() {
         OkHttpClient client = new OkHttpClient();
@@ -222,92 +217,33 @@ public class GameWidgetProvider extends AppWidgetProvider {
         } catch (IOException e) {
             Log.e("GameWidgetUpdate", "Failed to fetch data", e);
             return new GameData("", "", "", "", "", "", "", "", "");  // Return a default GameData if fetch failed
-        }
+        }//
     }
 }
 
 
         ```
-    - here is code with MainActivity.java
-        - ```java
-package com.example.ad_game_java;
-
-import android.os.Bundle;
-import android.view.KeyEvent;
-import android.view.inputmethod.EditorInfo;
-import android.widget.EditText;
-import android.widget.FrameLayout;
-import android.widget.TextView;
-
-import androidx.appcompat.app.AppCompatActivity;
-
-public class MainActivity extends AppCompatActivity {
-    private EditText inputEditText;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        // 设置背景
-        FrameLayout backgroundView = findViewById(R.id.background_view);
-        backgroundView.setBackgroundResource(R.drawable.project); // 替换为你的背景图片
-        backgroundView.setClickable(true);
-
-        // 获取输入框
-        inputEditText = findViewById(R.id.input_edit_text);
-        inputEditText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView textView, int actionId, KeyEvent keyEvent) {
-                if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    sendInputToServer(inputEditText.getText().toString()); // 将输入发送到远端服务器
-                    inputEditText.clearFocus();
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-        });
-    }
-
-    private void sendInputToServer(String input) {
-        // 将输入发送到远端服务器的逻辑
-        // ...
-    }
-}
-
-        ```
-- path:C:\Local_dev\Ad_game_java\app\src\main\res\layout
-    - here is code with activity_main.xml
+- path:C:\Local_dev\Ad_game_java\app\src\main
+    - here is code with AndroidManifest.xml
         - ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/background_view"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/project"
-    android:clickable="true"
-    tools:context=".MainActivity">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <RelativeLayout
-        android:id="@+id/foreground_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Ad_game_java"
+        tools:targetApi="31" />
 
-        <EditText
-            android:id="@+id/input_edit_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="请输入内容"
-            android:padding="8dp"
-            android:textSize="16sp" />
-
-    </RelativeLayout>
-
-</FrameLayout>
-
+</manifest>
         ```
+- path:C:\Local_dev\Ad_game_java\app\src\main\res\layout
     - here is code with game_widget_layout.xml
         - ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -426,8 +362,9 @@ public class MainActivity extends AppCompatActivity {
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="5dp"
                 android:background="@drawable/project">
-                <Button
-                    android:id="@+id/input_info_button"
+
+                <TextView
+                    android:id="@+id/input_info_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
@@ -435,8 +372,6 @@ public class MainActivity extends AppCompatActivity {
                     android:text="这里输入结果 "
                     android:textSize="11sp" />
             </FrameLayout>
-
-
 
 
 
