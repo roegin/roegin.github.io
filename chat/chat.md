@@ -1,4 +1,6 @@
-文件夹:C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10
+<!-- coding:utf-8 -->
+
+- 文件夹:C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10
     - 这是 AppDatabase.kt
         - ```javascript
 package com.example.test_v10
@@ -475,7 +477,7 @@ class WidgetProvider : AppWidgetProvider() {
 }
 
         ```
-文件夹:C:\Local_dev\test_v10\app\src\main\res\layout
+- 文件夹:C:\Local_dev\test_v10\app\src\main\res\layout
     - 这是 activity_main.xml
         - ```javascript
 <?xml version="1.0" encoding="utf-8"?>
@@ -935,7 +937,8 @@ class WidgetProvider : AppWidgetProvider() {
 </LinearLayout>
 
         ```
-文件夹:C:\Local_dev\test_v10\app\src\main\res\menu
+- 文件夹:C:\Local_dev\test_v10\app\src\main\res\main
+- 文件夹:C:\Local_dev\test_v10\app\src\main\res\menu
     - 这是 bottom_navigation_menu.xml
         - ```javascript
 <?xml version="1.0" encoding="utf-8"?>
@@ -952,7 +955,7 @@ class WidgetProvider : AppWidgetProvider() {
 </menu>
 
         ```
-文件夹:C:\Local_dev\test_v10\app\src\main\res\xml
+- 文件夹:C:\Local_dev\test_v10\app\src\main\res\xml
     - 这是 backup_rules.xml
         - ```javascript
 <?xml version="1.0" encoding="utf-8"?><!--
