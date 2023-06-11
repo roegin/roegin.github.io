@@ -1,273 +1,279 @@
 <!-- coding:utf-8 -->
 
-- path:C:\Local_dev\test_v10\app\src\main\java\com\example\test_v10
-    - here is code with GameWidgetProvider.kt
-        - ```kotlin
-package com.example.test_v10
+- path:C:\Local_dev\Ad_game_java\app\src\main\java\com\example\ad_game_java
+    - here is code with GameData.java
+        - ```java
+package com.example.ad_game_java;
 
-import android.annotation.SuppressLint
-import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
-import android.content.ComponentName
-import android.content.Context
-import android.widget.RemoteViews
-import com.google.gson.Gson
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
+public class GameData {
+    private String player_hp;
+    private String player_mp;
+    private String lv;
+    private String ep;
+    private String inputInfo;
+    private String goal;
+    private String bossHp;
+    private String project;
+    private String record;
+
+    public GameData(String player_hp, String player_mp, String lv, String ep, String inputInfo, String goal, String bossHp, String project, String record) {
+        // 构造函数的实现
+    }
+
+    public String getPlayer_hp() {
+        return player_hp;
+    }
+
+    public void setPlayer_hp(String player_hp) {
+        this.player_hp = player_hp;
+    }
+
+    public String getPlayer_mp() {
+        return player_mp;
+    }
+
+    public void setPlayer_mp(String player_mp) {
+        this.player_mp = player_mp;
+    }
+
+    public String getLv() {
+        return lv;
+    }
+
+    public void setLv(String lv) {
+        this.lv = lv;
+    }
+
+    public String getEp() {
+        return ep;
+    }
+
+    public void setEp(String ep) {
+        this.ep = ep;
+    }
+
+    public String getInputInfo() {
+        return inputInfo;
+    }
+
+    public void setInputInfo(String inputInfo) {
+        this.inputInfo = inputInfo;
+    }
+
+    public String getGoal() {
+        return goal;
+    }
+
+    public void setGoal(String goal) {
+        this.goal = goal;
+    }
+
+    public String getBossHp() {
+        return bossHp;
+    }
+
+    public void setBossHp(String bossHp) {
+        this.bossHp = bossHp;
+    }
+
+    public String getProject() {
+        return project;
+    }
+
+    public void setProject(String project) {
+        this.project = project;
+    }
+
+    public String getRecord() {
+        return record;
+    }
+
+    public void setRecord(String record) {
+        this.record = record;
+    }
+}
+
+        ```
+    - here is code with GameWidgetProvider.java
+        - ```java
+package com.example.ad_game_java;
+
+import android.app.PendingIntent;
+import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProvider;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+import android.widget.RemoteViews;
+
+import com.example.ad_game_java.GameData;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.Timer;
+import java.util.TimerTask;
+import java.io.IOException;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import com.example.ad_game_java.R;
 
 
-//
-import kotlinx.coroutines.*
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.delay
+public class GameWidgetProvider extends AppWidgetProvider {
+    private Timer timer;
+    private TimerTask updateTask;
 
-//输出日志用
-import android.util.Log // 这个是新加的，用于输出日志
-
-//输入框
-import android.app.PendingIntent
-import android.content.Intent
-
-
-
-
-class GameWidgetProvider : HelloworldWidget() {
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
-        for (appWidgetId in appWidgetIds) {
-            update_game_widget(context, appWidgetManager, appWidgetId)
+    @Override
+    public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        for (int appWidgetId : appWidgetIds) {
+            update_game_widget(context, appWidgetManager, appWidgetId);
         }
     }
 
-    private var updateJob: Job? = null
+    @Override
+    public void onEnabled(Context context) {
+        super.onEnabled(context);
 
-    override fun onEnabled(context: Context) {
-        super.onEnabled(context)
+        if (updateTask != null) {
+            updateTask.cancel();
+        }
 
-        updateJob?.cancel()
-        updateJob = GlobalScope.launch(Dispatchers.IO) {
-            while (isActive) {
-                Log.d("GameWidgetUpdate", "start onenable")
-                val appWidgetManager = AppWidgetManager.getInstance(context)
-                val appWidgetIds = appWidgetManager.getAppWidgetIds(ComponentName(context.packageName, javaClass.name))
+        if (timer != null) {
+            timer.cancel();
+        }
 
-                for (appWidgetId in appWidgetIds) {
-                    update_game_widget(context, appWidgetManager, appWidgetId)
+        timer = new Timer();
+        updateTask = new TimerTask() {
+            @Override
+            public void run() {
+                Log.d("GameWidgetUpdate", "start onenable");
+                AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
+                int[] appWidgetIds = appWidgetManager.getAppWidgetIds(new ComponentName(context.getPackageName(), getClass().getName()));
+
+                for (int appWidgetId : appWidgetIds) {
+                    update_game_widget(context, appWidgetManager, appWidgetId);
                 }
-
-                delay(60_000L)  // Wait for 1 minute before the next update
             }
+        };
+
+        timer.schedule(updateTask, 0, 60000);  // Update every minute
+    }
+
+    @Override
+    public void onDisabled(Context context) {
+        super.onDisabled(context);
+
+        if (updateTask != null) {
+            updateTask.cancel();
+        }
+
+        if (timer != null) {
+            timer.cancel();
         }
     }
 
-    override fun onDisabled(context: Context) {
-        super.onDisabled(context)
+    public void update_game_widget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+        Log.d("GameWidgetUpdate", "await fetchdata");
+        new Thread(() -> {
+            GameData gameData = fetchData();  // Fetch data from the API
 
-        updateJob?.cancel()
+            Log.d("GameWidgetUpdate", "Fetched game data: " + gameData); // 输出解析后的 GameData 对象
+
+            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.game_widget_layout);
+
+            // Update views with fetched data
+            views.setTextViewText(R.id.lv_text, "LV: " + gameData.getLv());
+            views.setTextViewText(R.id.ep_text, "EP: " + gameData.getEp());
+            views.setProgressBar(R.id.health_bar, 100, Integer.parseInt(gameData.getPlayer_hp()), false);
+            views.setProgressBar(R.id.blue_bar, 100, Integer.parseInt(gameData.getPlayer_mp()), false);
+            views.setTextViewText(R.id.input_info_text, gameData.getInputInfo());
+            views.setTextViewText(R.id.goal_text, gameData.getGoal());
+            views.setProgressBar(R.id.boss_health_bar, 100, Integer.parseInt(gameData.getBossHp()), false);
+            views.setTextViewText(R.id.project_text, gameData.getProject());
+            views.setTextViewText(R.id.kill_num_text, gameData.getRecord());
+
+            appWidgetManager.updateAppWidget(appWidgetId, views);
+        }).start();
     }
-}
 
-//@SuppressLint("RemoteViewLayout")
-internal fun update_game_widget(
-    context: Context,
-    appWidgetManager: AppWidgetManager,
-    appWidgetId: Int
-) {
-    GlobalScope.launch(Dispatchers.Main) {
-        Log.d("GameWidgetUpdate", "await fetchdata")
-        val gameData = fetchData()  // Fetch data from the API
+    public GameData fetchData() {
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
+                .url("https://alex.shinestu.com/ad_game/get_data")  // Replace with your API URL
+                .build();
 
-        Log.d("GameWidgetUpdate", "Fetched game data: $gameData") // 输出解析后的 GameData 对象
+        Log.d("GameWidgetUpdate", "new request");
+        try {
+            Response response = client.newCall(request).execute();
+            Log.d("GameWidgetUpdate", "already get fetchdata");
+            String json = response.body().string();
 
-        val views = RemoteViews(context.packageName, R.layout.game_widget_layout)
+            Log.d("GameDataFetch", "JSON from server: " + json); // 输出获取的 JSON 数据
 
-        // Update views with fetched data
-        views.setTextViewText(R.id.lv_text, "LV: ${gameData.lv.toString()}")
-        views.setTextViewText(R.id.ep_text, "EP: ${gameData.ep.toString()}")
-        views.setProgressBar(R.id.health_bar, 100, gameData.player_hp.toInt(), false)
-        views.setProgressBar(R.id.blue_bar, 100, gameData.player_mp.toInt(), false)
-        views.setTextViewText(R.id.input_info_text, gameData.inputInfo)
+            ObjectMapper mapper = new ObjectMapper();
 
-        // 设置点击事件和跳转到 MainActivity
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(context, appWidgetId, intent, PendingIntent.FLAG_UPDATE_CURRENT)
-        views.setOnClickPendingIntent(R.id.input_info_text, pendingIntent)
-
-        views.setTextViewText(R.id.goal_text, gameData.goal)
-        views.setProgressBar(R.id.boss_health_bar, 100, gameData.bossHp.toInt(), false)
-        views.setTextViewText(R.id.project_text, gameData.project)
-        views.setTextViewText(R.id.kill_num_text, gameData.record)
-
-        appWidgetManager.updateAppWidget(appWidgetId, views) //
-    }
-}
-
-
-
-//点击输入辅助函数
-private fun getPendingIntent(context: Context, appWidgetId: Int): PendingIntent {
-    val intent = Intent(context, MainActivity::class.java) // 替换为你的MainActivity类
-    intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-    intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(appWidgetId))
-    return PendingIntent.getActivity(context, appWidgetId, intent, PendingIntent.FLAG_UPDATE_CURRENT)
-}
-
-
-
-//OKHTTP
-data class GameData(
-    val player_hp: String,
-    val player_mp: String,
-    val lv: String,
-    val ep: String,
-    val inputInfo: String,
-    val goal: String,
-    val bossHp: String,
-    val project: String,
-    val record: String
-)
-
-//fetchdata
-suspend fun fetchData(): GameData = withContext(Dispatchers.IO) {
-    val client = OkHttpClient()
-
-    val request = Request.Builder()
-        .url("https://alex.shinestu.com/ad_game/get_data")  // Replace with your API URL
-        .build()
-
-    Log.d("GameWidgetUpdate", "new request")
-    try {
-        client.newCall(request).execute().use { response ->
-            Log.d("GameWidgetUpdate", "already get fetchdata")
-            val json = response.body?.string()
-
-            Log.d("GameDataFetch", "JSON from server: $json") // 输出获取的 JSON 数据
-
-            val gson = Gson()
-
-            gson.fromJson(json, GameData::class.java)
+            return mapper.readValue(json, GameData.class);
+        } catch (IOException e) {
+            Log.e("GameWidgetUpdate", "Failed to fetch data", e);
+            return new GameData("", "", "", "", "", "", "", "", "");  // Return a default GameData if fetch failed
         }
-    } catch (e: Exception) {
-        Log.e("GameWidgetUpdate", "Failed to fetch data", e)
-        GameData("", "", "", "", "", "", "", "", "")  // Return a default GameData if fetch failed
     }
 }
-
-
-
 
 
         ```
-    - here is code with HelloworldWidget.kt
-        - ```kotlin
-package com.example.test_v10
+    - here is code with MainActivity.java
+        - ```java
+package com.example.ad_game_java;
 
-import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
-import android.content.Context
-import android.widget.RemoteViews
+import android.os.Bundle;
+import android.view.KeyEvent;
+import android.view.inputmethod.EditorInfo;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.TextView;
 
-/**
- * Implementation of App Widget functionality.
- */
-open class HelloworldWidget : AppWidgetProvider() {
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
-        for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
-        }
-    }
+import androidx.appcompat.app.AppCompatActivity;
 
+public class MainActivity extends AppCompatActivity {
+    private EditText inputEditText;
 
-    override fun onEnabled(context: Context) {
-        // Enter relevant functionality for when the first widget is created
-    }
-
-    override fun onDisabled(context: Context) {
-        // Enter relevant functionality for when the last widget is disabled
-    }
-}
-
-internal fun updateAppWidget(  //小部件更新对象
-    context: Context,
-    appWidgetManager: AppWidgetManager,
-    appWidgetId: Int,
-) {
-
-    val views = RemoteViews(context.packageName, R.layout.widget_layout)
-
-    //更新
-    appWidgetManager.updateAppWidget(appWidgetId, views)
-}
-        ```
-    - here is code with MainActivity.kt
-        - ```kotlin
-package com.example.test_v10
-
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-
-//输入框
-import android.app.PendingIntent
-import android.content.Intent
-import android.view.inputmethod.EditorInfo
-import android.widget.FrameLayout
-import android.widget.RelativeLayout
-import android.widget.EditText
-
-
-
-class MainActivity : AppCompatActivity() {
-    private lateinit var inputEditText: EditText
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
         // 设置背景
-        val backgroundView = findViewById<FrameLayout>(R.id.background_view)
-        backgroundView.setBackgroundResource(R.drawable.project) // 替换为你的背景图片
-        backgroundView.isClickable = true
-
-
-        /*
-        // 设置前景输入框
-        val foregroundView = findViewById<RelativeLayout>(R.id.foreground_view)
-        layoutInflater.inflate(R.layout.input_layout, foregroundView, true)
-
-         */
+        FrameLayout backgroundView = findViewById(R.id.background_view);
+        backgroundView.setBackgroundResource(R.drawable.project); // 替换为你的背景图片
+        backgroundView.setClickable(true);
 
         // 获取输入框
-        inputEditText = findViewById(R.id.input_edit_text)
-        inputEditText.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                sendInputToServer(inputEditText.text.toString()) // 将输入发送到远端服务器
-                inputEditText.clearFocus()
-                true
-            } else {
-                false
+        inputEditText = findViewById(R.id.input_edit_text);
+        inputEditText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView textView, int actionId, KeyEvent keyEvent) {
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    sendInputToServer(inputEditText.getText().toString()); // 将输入发送到远端服务器
+                    inputEditText.clearFocus();
+                    return true;
+                } else {
+                    return false;
+                }
             }
-        }
+        });
     }
 
-    private fun sendInputToServer(input: String) {
+    private void sendInputToServer(String input) {
         // 将输入发送到远端服务器的逻辑
         // ...
     }
 }
 
-
         ```
-- path:C:\Local_dev\test_v10\app\src\main\res\layout
+- path:C:\Local_dev\Ad_game_java\app\src\main\res\layout
     - here is code with activity_main.xml
         - ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -322,7 +328,7 @@ class MainActivity : AppCompatActivity() {
             android:scaleType="fitCenter"
             android:layout_gravity="center_horizontal|bottom" />
 
-        
+
         <!-- 玩家属性区域 和输入区-->
         <RelativeLayout
             android:id="@+id/attribute_layout"
@@ -364,12 +370,12 @@ class MainActivity : AppCompatActivity() {
 
             <!--属性文本框-->
             <RelativeLayout
-            android:id="@+id/attribute_text_layout"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentTop="true"
-            android:layout_toEndOf="@id/health_bar_container"
-            >
+                android:id="@+id/attribute_text_layout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_toEndOf="@id/health_bar_container"
+                >
 
                 <!-- LV文本 -->
                 <FrameLayout
@@ -377,7 +383,7 @@ class MainActivity : AppCompatActivity() {
                     android:layout_width="60dp"
                     android:layout_height="15dp"
                     android:background="@drawable/project">
-                    
+
                     <TextView
                         android:id="@+id/lv_text"
                         android:layout_width="wrap_content"
@@ -416,20 +422,19 @@ class MainActivity : AppCompatActivity() {
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="5dp"
                 android:background="@drawable/project">
-                
+
                 <TextView
                     android:id="@+id/input_info_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-
                     android:paddingStart="2dp"
                     android:text="这里输入结果 "
                     android:textSize="11sp" />
             </FrameLayout>
-           
 
-           
+
+
 
 
 
@@ -451,7 +456,7 @@ class MainActivity : AppCompatActivity() {
             android:layout_marginTop="16dp" />
         -->
     </FrameLayout>
-    
+
 
     <!--BOSS区整体框架-->
     <FrameLayout
@@ -543,10 +548,10 @@ class MainActivity : AppCompatActivity() {
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="fitCenter"
-                android:src="@drawable/boss" 
+                android:src="@drawable/boss"
                 android:layout_gravity="center_horizontal|bottom" />
 
-            
+
 
             <!--项目框-->
             <FrameLayout
@@ -609,7 +614,7 @@ class MainActivity : AppCompatActivity() {
                 android:text="历史击杀"
                 android:textSize="10sp" />
 
-             <!-- 标题 -->
+            <!-- 标题 -->
             <TextView
                 android:id="@+id/kill_num_text"
                 android:layout_width="wrap_content"
@@ -625,103 +630,8 @@ class MainActivity : AppCompatActivity() {
 
 
 
-    
+
 
 </RelativeLayout>
-
-        ```
-    - here is code with input_layout.xml
-        - ```xml
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <EditText
-        android:id="@+id/input_edit_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:hint="请输入内容"
-        android:padding="8dp"
-        android:textSize="16sp" />
-
-</RelativeLayout>
-
-        ```
-    - here is code with widget_layout.xml
-        - ```xml
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
-
-    <TextView
-        android:id="@+id/widget_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World2222!" />
-
-</LinearLayout>
-
-        ```
-- path:C:\Local_dev\test_v10\app\src\main\res\xml
-    - here is code with backup_rules.xml
-        - ```xml
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older that API 31
-   See https://developer.android.com/about/versions/12/backup-restore
--->
-<full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
-</full-backup-content>
-        ```
-    - here is code with data_extraction_rules.xml
-        - ```xml
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
-<data-extraction-rules>
-    <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
-    </cloud-backup>
-    <!--
-    <device-transfer>
-        <include .../>
-        <exclude .../>
-    </device-transfer>
-    -->
-</data-extraction-rules>
-        ```
-    - here is code with game_widget_info.xml
-        - ```xml
-<?xml version="1.0" encoding="utf-8"?>
-<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="350dp"
-    android:minHeight="100dp"
-    android:updatePeriodMillis="6000"
-    android:initialLayout="@layout/game_widget_layout" />
-
-        ```
-    - here is code with widget_provider.xml
-        - ```xml
-<?xml version="1.0" encoding="utf-8"?>
-<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="100dp"
-    android:minHeight="100dp"
-    android:updatePeriodMillis="60000"
-    android:initialLayout="@layout/widget_layout" />
 
         ```
