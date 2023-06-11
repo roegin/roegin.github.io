@@ -178,25 +178,29 @@ public class GameWidgetProvider extends AppWidgetProvider {
         Log.d("GameWidgetUpdate", "await fetchdata");
         new Thread(() -> {
             GameData gameData = fetchData();  // Fetch data from the API
-
             Log.d("GameWidgetUpdate", "Fetched game data: " + gameData); // 输出解析后的 GameData 对象
-
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.game_widget_layout);
-
             // Update views with fetched data
             views.setTextViewText(R.id.lv_text, "LV: " + gameData.getLv());
             views.setTextViewText(R.id.ep_text, "EP: " + gameData.getEp());
             views.setProgressBar(R.id.health_bar, 100, Integer.parseInt(gameData.getPlayer_hp()), false);
             views.setProgressBar(R.id.blue_bar, 100, Integer.parseInt(gameData.getPlayer_mp()), false);
-            views.setTextViewText(R.id.input_info_text, gameData.getInputInfo());
+            views.setCharSequence(R.id.input_info_button, "setText", gameData.getInputInfo());
             views.setTextViewText(R.id.goal_text, gameData.getGoal());
             views.setProgressBar(R.id.boss_health_bar, 100, Integer.parseInt(gameData.getBossHp()), false);
             views.setTextViewText(R.id.project_text, gameData.getProject());
             views.setTextViewText(R.id.kill_num_text, gameData.getRecord());
 
+            // Create an Intent that will open MainActivity
+            Intent intent = new Intent(context, MainActivity.class);
+            PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+            views.setOnClickPendingIntent(R.id.input_info_button, pendingIntent);
+
             appWidgetManager.updateAppWidget(appWidgetId, views);
         }).start();
     }
+
+
 
     public GameData fetchData() {
         OkHttpClient client = new OkHttpClient();
@@ -422,9 +426,8 @@ public class MainActivity extends AppCompatActivity {
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="5dp"
                 android:background="@drawable/project">
-
-                <TextView
-                    android:id="@+id/input_info_text"
+                <Button
+                    android:id="@+id/input_info_button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
@@ -432,6 +435,8 @@ public class MainActivity extends AppCompatActivity {
                     android:text="这里输入结果 "
                     android:textSize="11sp" />
             </FrameLayout>
+
+
 
 
 
