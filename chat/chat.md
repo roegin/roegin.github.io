@@ -116,11 +116,14 @@ package com.example.ad_game_java;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.widget.RemoteViews;
 import android.util.Log;
 //引入log.d的 依赖
 
 //引入网络依赖
+import com.google.gson.Gson;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -209,11 +212,89 @@ public class GameWidgetProvider extends AppWidgetProvider {
     public void update_game_widget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.game_widget_layout);
 
-        // Update views
-        // Here you can update your views as you like
-        // views.setTextViewText(R.id.example_view, "Example text");
+        // 从SharedPreferences中获取当前项目
+        SharedPreferences sharedPreferences = context.getSharedPreferences("current_project", Context.MODE_PRIVATE);
+        Gson gson = new Gson();
+        String json = sharedPreferences.getString("current_project", "");
+        Project currentProject = gson.fromJson(json, Project.class);
+
+        // 如果当前项目存在，更新widget的标题为当前项目的名称
+        if (currentProject != null) {
+            views.setTextViewText(R.id.project_text, currentProject.getName());
+        }
 
         appWidgetManager.updateAppWidget(appWidgetId, views);
+    }
+}
+
+        ```
+    - here is code with NavigationProjectListFragment.java
+        - ```java
+package com.example.ad_game_java;
+
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class NavigationProjectListFragment extends Fragment {
+
+    private RecyclerView recyclerView;
+    private ProjectAdapter adapter;
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_navigation_project_list, container, false);
+
+        recyclerView = view.findViewById(R.id.recycler_view);
+        recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
+
+        // 这里我们使用默认的项目数据
+        List<Project> projects = getDefaultProjects();
+        adapter = new ProjectAdapter(projects);
+        recyclerView.setAdapter(adapter);
+
+        return view;
+    }
+
+    private List<Project> getDefaultProjects() {
+        // 在这里添加你的默认项目数据
+        List<Project> projects = new ArrayList<>();
+        projects.add(new Project("项目1"));
+        projects.add(new Project("项目2"));
+        projects.add(new Project("项目3"));
+        return projects;
+    }
+}
+
+        ```
+    - here is code with NavigationProjectOverviewFragment.java
+        - ```java
+package com.example.ad_game_java;
+
+import android.os.Bundle;
+import androidx.fragment.app.Fragment;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+
+public class NavigationProjectOverviewFragment extends Fragment {
+
+    public NavigationProjectOverviewFragment() {
+        // Required empty public constructor
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        // Inflate the layout for this fragment
+        return inflater.inflate(R.layout.activity_blank, container, false);
     }
 }
 
@@ -235,6 +316,9 @@ public class Project {
     private Date start_date;
     private Date end_date;
     private double time_schedule;
+
+    public Project(String 项目1) {
+    }
 
     public String getName() {
         return name;
@@ -335,9 +419,10 @@ public class ProjectActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_project);
 
+        /*
         BottomNavigationView navigation = findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(item -> {
-            /*
+
             switch (item.getItemId()) {
                 case R.id.navigation_project_list:
                     // 切换到项目列表Fragment
@@ -345,9 +430,13 @@ public class ProjectActivity extends AppCompatActivity {
                 case R.id.navigation_project_overview:
                     // 切换到项目总览Fragment
                     break;
-            }*/
+            }
             return true;
         });
+        */
+        BottomNavigationView navView = findViewById(R.id.navigation);
+        navView.inflateMenu(R.menu.menu_navigation);
+
 
     }
 }
@@ -406,7 +495,7 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectV
 
         ProjectViewHolder(@NonNull View itemView) {
             super(itemView);
-            //nameTextView = itemView.findViewById(R.id.nameTextView);
+            nameTextView = itemView.findViewById(R.id.project_text);
             // 这里省略了其他属性的TextView的初始化
 
             itemView.setOnClickListener(v -> {
@@ -480,6 +569,34 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectV
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+        ```
+    - here is code with bottom_navigation_menu.xml
+        - ```xml
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/navigation_project_list"
+        android:icon="@drawable/ic_project_list"
+        android:title="项目列表" />
+    <item
+        android:id="@+id/navigation_project_overview"
+        android:icon="@drawable/ic_project_overview"
+        android:title="项目总览" />
+</menu>
+
+        ```
+    - here is code with fragment_navigation_project_list.xml
+        - ```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.recyclerview.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/recycler_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+    tools:listitem="@layout/project_item" />
+
         ```
     - here is code with game_widget_layout.xml
         - ```xml
@@ -810,5 +927,23 @@ public class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectV
 
 
 </RelativeLayout>
+
+        ```
+    - here is code with project_item.xml
+        - ```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/project_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="16sp" />
+
+</LinearLayout>
 
         ```
