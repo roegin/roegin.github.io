@@ -1,10 +1,14 @@
-- 以下是gamewidget的java代码
-    - ```javascript
-package com.example.ad_game_java;
+- 以下是ionic项目相关代码
+    - 以下是widget对象的代码
+        - ```javascript
+package io.ionic.starter;
 
+import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.widget.RemoteViews;
 import android.util.Log;
 //引入log.d的 依赖
@@ -20,421 +24,203 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-
-
 public class GameWidgetProvider extends AppWidgetProvider {
-
-    //在小部件创建时打印测试信息
-    @Override
-    public void onEnabled(Context context) {
-        super.onEnabled(context);
-
-        // 创建一个 ExecutorService 实例来处理后台任务
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-
-        // 使用 Timer 创建一个定时任务
-        Timer timer = new Timer();
-
-        // 设定每分钟执行一次的任务
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                // 创建一个 Runnable 对象来执行网络请求
-                Runnable runnable = new Runnable() {
-                    @Override
-                    public void run() {
-                        // 执行网络请求
-                        try {
-                            // 创建一个 URL 对象
-                            URL url = new URL("https://alex.shinestu.com/ad_game/get_data");
-
-                            // 打开 URL 的连接
-                            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-                            // 设置请求方法为 GET
-                            connection.setRequestMethod("GET");
-
-                            // 获取服务器返回的输入流
-                            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-
-                            // 读取返回的数据
-                            StringBuilder response = new StringBuilder();
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                response.append(line);
-                            }
-
-                            // 关闭连接和读取器
-                            reader.close();
-                            connection.disconnect();
-
-                            // 打印返回的数据
-                            Log.d("test_tag", response.toString());
-
-                        } catch (Exception e) {
-                            Log.d("test_tag", "获取数据时出现错误", e);
-                        }
-                    }
-                };
-
-                // 将网络请求的 Runnable 提交给 ExecutorService 执行
-                executor.execute(runnable);
-            }
-        }, 0, 60 * 1000);  // 第一次执行的延迟（0 表示立即执行），以及每次执行的间隔（60*1000 毫秒，即一分钟）
-
-        Log.d("test_tag", "这是一条调试日志消息");
+    // 小部件的属性对象
+    private static class WidgetElement {
+        public String goalText;
+        public int health;
+        public String projectTitle;
+        public String level;
+        public String money;
+        public String inputText;
+        public int bossHealth;
+        public String killCount;
     }
 
+    // 内部存储小部件的属性对象
+    private static WidgetElement widgetElement = new WidgetElement();
 
+    //更新项目标题的方法
+    public static void setCurrentProjectTitle(String projectTitle) {
+        widgetElement.projectTitle = projectTitle;
+    }
 
+    //projecttiele
+    public static void updateProjectTitle(Context context, String projectTitle) {
+        // 更新项目标题
+        widgetElement.projectTitle = projectTitle;
 
-    @Override
-    public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        // 获取小部件管理器
+        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
+
+        // 获取小部件的唯一标识符
+        int[] appWidgetIds = appWidgetManager.getAppWidgetIds(new ComponentName(context, GameWidgetProvider.class));
+
+        // 更新小部件属性
         for (int appWidgetId : appWidgetIds) {
-            update_game_widget(context, appWidgetManager, appWidgetId);
+            update_widget_element(context, appWidgetManager, appWidgetId, widgetElement);
         }
     }
 
-    public void update_game_widget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+
+
+    // 更新小部件的属性内容
+    public static void update_widget_element(Context context, AppWidgetManager appWidgetManager, int appWidgetId, WidgetElement element) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.game_widget_layout);
 
-        // Update views
-        // Here you can update your views as you like
-        // views.setTextViewText(R.id.example_view, "Example text");
+        // 更新任务目标文本
+        if (element.goalText != null) {
+            views.setTextViewText(R.id.goal_text, element.goalText);
+        }
 
+        // 更新血量
+        if (element.health >= 0) {
+            views.setProgressBar(R.id.boss_health_bar, 100, element.health, false);
+        }
+
+        // 更新项目标题
+        if (element.projectTitle != null) {
+            views.setTextViewText(R.id.project_text, element.projectTitle);
+        }
+
+        // 更新等级文本
+        if (element.level != null) {
+            views.setTextViewText(R.id.lv_text, element.level);
+        }
+
+        // 更新金钱文本
+        if (element.money != null) {
+            views.setTextViewText(R.id.ep_text, element.money);
+        }
+
+        // 更新输入框文本
+        if (element.inputText != null) {
+            views.setTextViewText(R.id.input_info_text, element.inputText);
+        }
+
+        // 更新BOSS血条
+        if (element.bossHealth >= 0) {
+            views.setProgressBar(R.id.boss_health_bar, 100, element.bossHealth, false);
+        }
+
+        // 更新击杀计数
+        if (element.killCount != null) {
+            views.setTextViewText(R.id.kill_num_text, element.killCount);
+        }
+
+        // 更新小部件
         appWidgetManager.updateAppWidget(appWidgetId, views);
+    }
+
+    // 在小部件创建时打印测试信息
+    @Override
+    public void onEnabled(Context context) {
+        super.onEnabled(context);
+        Log.d("test_tag", "这是一条调试日志消息");
+    }
+
+    @Override
+    public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        // 不执行默认的更新操作，将更新逻辑放在外部调用的方法中
+    }
+}
+
+```
+    - 以下是bridge的代码
+        - ```javascript
+package io.ionic.starter;
+
+import android.content.Context;
+import android.appwidget.AppWidgetManager;
+
+public class WidgetBridge {
+    public static void updateProjectTitle(Context context, int appWidgetId, String projectTitle) {
+        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
+        GameWidgetProvider.updateProjectTitle(context, projectTitle);
     }
 }
 ```
-- 以下是layout文件
-    - ```javascript
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="280dp">
-    <!-- Player FrameLayout -->
-    <FrameLayout
-        android:id="@+id/player_container"
-        android:layout_width="150dp"
-        android:layout_height="200dp"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentBottom="true"
-        android:layout_gravity="center_horizontal|bottom">
+    - 以下是react的projectlistpage组件
+        - ```javascript
+import React from 'react';
+import { IonContent, IonList, IonItem, IonLabel } from '@ionic/react';
+import {  Plugins } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { useState, useEffect } from 'react';
+const FilesystemDirectory = Directory;
 
-        <!-- Avatar 图片 -->
-        <ImageView
-            android:id="@+id/avatar_image"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:src="@drawable/avatar"
-            android:scaleType="fitCenter"
-            android:layout_gravity="center_horizontal|bottom" />
+//const { Filesystem } = Plugins;
+const defaultProject = {
+    name: "默认项目",
+    miro_board_id: "",
+    miro_board_link: "",
+    total_goals_num: 0,
+    completed_goals_num: 0,
+    process: 0,
+    dead_line: "",
+    start_date: "",
+    end_date: "",
+    time_schedule: 0
+  };
+  
 
+const ProjectsListPage: React.FC = () => {
+  const [projectStack, setProjectStack] = useState([]);
 
-        <!-- 玩家属性区域 和输入区-->
-        <RelativeLayout
-            android:id="@+id/attribute_layout"
-            android:layout_width="wrap_content"
-            android:layout_height="60dp"
-            android:orientation="vertical"
-            android:layout_gravity="center_horizontal|bottom"
-            android:layout_marginBottom="10dp">
+  // 读取本地存储的项目数据
+  const readProjectStack = async () => {
+    try {
+      const result = await Filesystem.readFile({
+        path: 'file_stack/project_stack.json',
+        directory: FilesystemDirectory.External
+      });
+      const projectStackData = JSON.parse(result.data);
+      setProjectStack(projectStackData);
+    } catch (error) {
+      console.error('Error reading project stack:', error);
+      setProjectStack([]);
+    }
+  };
 
-            <!--血条蓝条-->
-            <RelativeLayout
-                android:id="@+id/health_bar_container"
-                android:layout_width="100dp"
-                android:layout_height="wrap_content"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentStart="true">
+  // 点击项目时更新小部件的项目标题
+    const updateWidgetProjectTitle = async (projectTitle: string) => {
+        try {
+        await Filesystem.invoke('GameWidgetProvider.updateProjectTitle', { projectTitle });
+        console.log('Project title updated in widget.');
+        } catch (error) {
+        console.error('Error updating project title in widget:', error);
+        }
+    };
 
-                <ProgressBar
-                    android:id="@+id/health_bar"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="10dp"
-                    android:layout_alignParentTop="true"
-                    android:max="100"
-                    android:progress="50"
-                    android:progressTint="@color/health_color" />
+  // 点击项目时弹出确认对话框
+  const handleProjectClick = async (project: any) => {
+    const confirmDialog = window.confirm(`确定选择项目 ${project.name}?`);
+    if (confirmDialog) {
+        updateWidgetProjectTitle(project.name);
+    }
+  };
 
-                <ProgressBar
-                    android:id="@+id/blue_bar"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="10dp"
-                    android:layout_below="@+id/health_bar"
-                    android:max="100"
-                    android:progress="70"
-                    android:progressTint="@color/light_blue_900" />
+  useEffect(() => {
+    readProjectStack();
+  }, []);
 
-            </RelativeLayout>
+  return (
+    <IonContent>
+      <IonList>
+        {projectStack.map((project: any) => (
+          <IonItem key={project.name} onClick={() => handleProjectClick(project)}>
+            <IonLabel>{project.name}</IonLabel>
+          </IonItem>
+        ))}
+        <IonItem key={defaultProject.name} onClick={() => handleProjectClick(defaultProject)}>
+          <IonLabel>{defaultProject.name}</IonLabel>
+        </IonItem>
+      </IonList>
+    </IonContent>
+  );
+};
 
-            <!--属性文本框-->
-            <RelativeLayout
-                android:id="@+id/attribute_text_layout"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentTop="true"
-                android:layout_toEndOf="@id/health_bar_container"
-                >
+export default ProjectsListPage;
 
-                <!-- LV文本 -->
-                <FrameLayout
-                    android:id="@+id/lv_text_container"
-                    android:layout_width="60dp"
-                    android:layout_height="15dp"
-                    android:background="@drawable/project">
-
-                    <TextView
-                        android:id="@+id/lv_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical|start"
-                        android:paddingStart="2dp"
-                        android:text="LV: 91"
-                        android:textSize="9sp" />
-                </FrameLayout>
-
-
-                <!-- 金钱文本 -->
-                <FrameLayout
-                    android:id="@+id/money_text_container"
-                    android:layout_width="60dp"
-                    android:layout_height="15dp"
-                    android:layout_below="@id/lv_text_container"
-                    android:background="@drawable/project">
-                    <TextView
-                        android:id="@+id/ep_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="9sp"
-                        android:paddingStart="2dp"
-                        android:text="EP: 8765" />
-                </FrameLayout>
-
-            </RelativeLayout>
-
-            <!-- 输入框 -->
-            <FrameLayout
-                android:id="@+id/input_container"
-                android:layout_width="130dp"
-                android:layout_height="30dp"
-                android:layout_below="@id/attribute_text_layout"
-                android:layout_centerHorizontal="true"
-                android:layout_marginTop="5dp"
-                android:background="@drawable/project">
-
-                <TextView
-                    android:id="@+id/input_info_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:paddingStart="2dp"
-                    android:text="这里输入结果 "
-                    android:textSize="11sp" />
-            </FrameLayout>
-
-
-
-
-
-
-        </RelativeLayout>
-
-
-
-
-
-        <!-- 输入框 -->
-        <!--
-        <EditText
-            android:id="@+id/input_text"
-            android:layout_width="100dp"
-            android:layout_height="wrap_content"
-            android:hint="Enter failure result"
-            android:layout_below="@id/attribute_layout"
-            android:layout_alignStart="@id/attribute_layout"
-            android:layout_marginTop="16dp" />
-        -->
-    </FrameLayout>
-
-
-    <!--BOSS区整体框架-->
-    <FrameLayout
-        android:id="@+id/boss_area_container"
-        android:layout_width="230dp"
-        android:layout_height="280dp"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true"
-        >
-
-        <!--任务交互区域-->
-        <RelativeLayout
-            android:id="@+id/action_area"
-            android:layout_width="100dp"
-            android:layout_height="75dp"
-            android:layout_marginTop="30dp"
-            android:elevation="3dp"
-            android:layout_gravity="left" >
-
-            <!-- 任务目标 -->
-            <FrameLayout
-                android:id="@+id/goal_text_container"
-                android:layout_width="70dp"
-                android:layout_height="25dp"
-                android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true"
-                android:background="@drawable/project">
-                <TextView
-                    android:id="@+id/goal_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:paddingStart="2dp"
-                    android:text="目标XX"
-                    android:textSize="15sp" />
-            </FrameLayout>
-
-            <!-- 完成按钮 -->
-            <FrameLayout
-                android:id="@+id/goal_success_container"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_below="@id/goal_text_container"
-                android:background="@drawable/project">
-                <TextView
-                    android:id="@+id/goal_success_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:paddingStart="2dp"
-                    android:text="✔"
-                    android:textSize="29sp" />
-            </FrameLayout>
-
-            <!-- 失败按钮 -->
-            <FrameLayout
-                android:id="@+id/goal_fail_container"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_below="@id/goal_text_container"
-                android:layout_toEndOf="@id/goal_success_container"
-                android:background="@drawable/project">
-                <TextView
-                    android:id="@+id/goal_fail_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:paddingStart="2dp"
-                    android:text="❌"
-                    android:textSize="22sp" />
-            </FrameLayout>
-
-        </RelativeLayout>
-
-
-        <!-- BOSS 本身区域 -->
-        <FrameLayout
-            android:id="@+id/boss_container"
-            android:layout_width="170dp"
-            android:layout_height="280dp"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:elevation="2dp"
-            android:layout_gravity="center|bottom">
-
-            <!-- BOSS 图片 -->
-            <ImageView
-                android:id="@+id/boss_image"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/boss"
-                android:layout_gravity="center_horizontal|bottom" />
-
-
-
-            <!--项目框-->
-            <FrameLayout
-                android:id="@+id/project_area"
-                android:layout_width="80dp"
-                android:layout_height="20dp"
-                android:background="@drawable/project"
-                android:layout_marginBottom="43dp"
-                android:layout_gravity="center|bottom">
-                <!-- test -->
-                <TextView
-                    android:id="@+id/project_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:paddingStart="2dp"
-                    android:text="项目完成"
-                    android:textSize="13sp" />
-            </FrameLayout>
-
-
-            <!--BOSS血条 -->
-            <FrameLayout
-                android:id="@+id/boss_hp_container"
-                android:layout_width="100dp"
-                android:layout_height="10dp"
-                android:background="@drawable/project"
-                android:layout_marginBottom="30dp"
-                android:layout_gravity="center|bottom">
-                <!-- HP -->
-                <ProgressBar
-                    android:id="@+id/boss_health_bar"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="10dp"
-                    android:layout_gravity="center"
-                    android:max="100"
-                    android:progress="50"
-                    android:progressTint="@color/health_color" />
-            </FrameLayout>
-        </FrameLayout>
-
-        <!--BOSS记录-->
-        <FrameLayout
-            android:id="@+id/kill_history_area"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:background="@drawable/project"
-            android:layout_marginBottom="60dp"
-            android:elevation="1dp"
-            android:layout_gravity="right|bottom" >
-
-            <!-- 标题 -->
-            <TextView
-                android:id="@+id/kill_title_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="7dp"
-                android:text="历史击杀"
-                android:textSize="10sp" />
-
-            <!-- 标题 -->
-            <TextView
-                android:id="@+id/kill_num_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_below="@id/kill_title_text"
-                android:layout_marginTop="7dp"
-                android:text="28"
-                android:textSize="13sp" />
-        </FrameLayout>
-    </FrameLayout>
-
-
-
-
-
-
-</RelativeLayout>
 ```
-- 给我如下要求的详细步骤
-    - 点击widget的项目标题部分,跳转到一个空白的activity页面
+- 测试结果 是点击项目 并 确认并没有更新widget的项目标题,帮我检查代码给我解决步骤
