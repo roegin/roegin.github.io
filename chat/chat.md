@@ -1,4 +1,4 @@
-- 以下是我todoist hook触发计时器的代码
+- 以下是我todoist hook触发计时器的代码 //
     - ```javascript
         Todoist.activitywatcher.set_trigger(hook,'item:updated',async data=>{
           //let event=new Gcal.Event()
