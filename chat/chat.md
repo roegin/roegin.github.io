@@ -1,5 +1,112 @@
 - 项目参考
-    - adgame对象相关
+    - AdGame对象,安卓端
+        - ```javascript
+package io.ionic.starter;
+
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+import android.content.BroadcastReceiver;
+import android.content.Intent;
+
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.json.JSONObject;
+
+class AdGame {
+    private static final int JOB_ID = 0;
+    private static final long UPDATE_INTERVAL = 60 * 1000; // 1 min
+
+    private Context context;
+    private GameWidgetProvider.WidgetElement widgetElement;
+    private ExecutorService executor;
+
+    public AdGame(Context context, GameWidgetProvider.WidgetElement widgetElement) {
+        this.context = context;
+        this.widgetElement = widgetElement;
+        this.executor = Executors.newSingleThreadExecutor();
+    }
+
+    public void startAlarm() {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, GameWidgetProvider.UpdateReceiver.class);
+        PendingIntent pendingIntent;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        } else {
+            pendingIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
+        }
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 60 * 1000, pendingIntent);
+        Log.d("test_tag", "Alarm started");
+    }
+
+
+    public void stopAlarm() {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, GameWidgetProvider.UpdateReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
+        alarmManager.cancel(pendingIntent);
+        Log.d("test_tag", "Alarm stopped");
+    }
+
+    public void update() {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Log.d("test_tag", "Running update");
+                    // 更新 currentProject
+                    String currentProjectUrl = "https://alex.shinestu.com/ad_game/current_project/get";
+                    JSONObject currentProjectJson = getJsonFromServer(currentProjectUrl);
+                    widgetElement.projectTitle = currentProjectJson.optString("name");
+                    widgetElement.miroLink = currentProjectJson.optString("miro_link"); // 获取miro_link
+                    GameWidgetProvider.updateWidgetElement(context, widgetElement);
+
+                    // 更新 currentGoal
+                    String currentGoalUrl = "https://alex.shinestu.com/ad_game/current_goal/get";
+                    JSONObject currentGoalJson = getJsonFromServer(currentGoalUrl);
+                    widgetElement.goalText = currentGoalJson.optString("name");
+                    GameWidgetProvider.updateWidgetElement(context, widgetElement);
+                } catch (Exception e) {
+                    Log.e("AdGame", "Failed to update from server", e);
+                }
+            }
+        });
+    }
+
+    private JSONObject getJsonFromServer(String urlString) throws IOException {
+        Log.d("test_tag", "Fetching JSON from " + urlString);
+        URL url = new URL(urlString);
+        HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+        try {
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+            StringBuilder stringBuilder = new StringBuilder();
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                stringBuilder.append(line).append("\n");
+            }
+            bufferedReader.close();
+            Log.d("test_tag", "JSON received: " + stringBuilder.toString());
+            return new JSONObject(stringBuilder.toString());
+        } catch (Exception e) {
+            Log.e("AdGame", "Failed to parse JSON", e);
+            return null;
+        } finally {
+            urlConnection.disconnect();
+        }
+    }
+}
+```
+    - nodejs服务器端adgame对象相关
         - 服务器网址
             - https://alex.shinestu.com
             - 所以adgame接口的完整网址是如 https://alex.shinestu.com/current_project/set 
