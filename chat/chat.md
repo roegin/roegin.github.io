@@ -1,9 +1,449 @@
-- 请根据参考,帮我完成以下要求,给我详细步骤和代码
-    - 给我一个新的类SynchronizerMiroProjectsAsTasks
-        - 该类将项目概览卡片作为任务同步到miro的任务集合数据库
-        - 同步属性对应关系
-            - 项目名title对应notion的任务标题
 - 参考
+    - 同步miro任务集合到notion任务数据库的类SynchronizerMiroNotionTasks
+        - ```javascript
+
+const sqlite3 = require('sqlite3').verbose();
+
+const BigPicture = require('./BigPicture').BigPicture;
+const Miro=require('./Miro')
+const Notion=require('./notion')
+
+
+const { notionClient,Jsserve,axios,moment,path,AiTitleMiro} = require('./libraries');
+
+
+class SynchronizerMiroNotionTasks {
+    constructor() {
+        // 确保只有一个实例被创建
+        /*
+        if (SynchronizerMiroNotionTasks.instance) {
+            return SynchronizerMiroNotionTasks.instance;
+        }
+        */
+        //this.MiroBoardId = MiroBoardId;
+        this.NotionDatabaseId = process.env.NOTION_TASKS_DATABASE_ID//NotionDatabaseId;
+        this.teamId = process.env.GOALS_TEAM_ID;
+        this.dbPath = process.env.DB_PATH;
+        this.Miro = Miro;
+        this.db = new sqlite3.Database(path.join(__dirname, process.env.DB_PATH));
+        this.db.run(`CREATE TABLE IF NOT EXISTS MiroTasksUpdateRecord (id TEXT PRIMARY KEY, modifiedAt TEXT)`);
+        this.notionClient = notionClient
+        /*
+        SynchronizerMiroNotionTasks.instance = this;
+        */
+    }
+
+    extractmiroNodeId(notionTask) {
+        try{
+            return notionTask.properties.miroNodeId.rich_text[0].plain_text
+
+        }
+        catch(e){
+            return null
+        }
+    }
+
+    _extractTaskTitle(notionTask) {
+        try{
+            return ((item) => {
+            if (item.properties['Task name'] && item.properties['Task name'].title && item.properties['Task name'].title[0]) {
+                let title = item.properties['Task name'].title[0].plain_text;
+                //console.log('title', title);
+                return title;
+            } else {
+                return 'N/A'; // 或者你可以选择返回任何其他默认值
+            }
+        })(notionTask)
+        }
+        catch(e){
+            return null
+        }
+    }
+
+    async sync() {
+        try {
+            const bigPicture = new BigPicture();
+
+            // 获取Miro中的所有任务
+            let miroTasks = await bigPicture.getInProgressProjectTasksByCard();
+
+            // 删除项目根节点
+            /*
+            const rootNode = miroTasks.find(node => node.node_type === 'root');
+            if (rootNode) {
+                const index = miroTasks.indexOf(rootNode);
+                miroTasks.splice(index, 1);
+            } */
+            miroTasks = miroTasks.filter(node => {
+                if (node.node_type === 'root') {
+                    let aititle=new AiTitleMiro(node.title)
+                    let pro=aititle.getProperties()
+                    let actionStartDate=pro.actionStartDate
+                    return actionStartDate
+                }
+                return true
+            });
+
+            // 获取Notion数据库中的所有任务
+            let notionTasks = await this.getNotionTasks(this.NotionDatabaseId);
+
+            //打印存在任务列表
+            let existTasks=[]
+
+            // 同步中的创建和更新
+            for (const miroTask of miroTasks) {
+                // 获取Notion对应的miroid的task
+
+
+
+
+                const existingNotionTask = notionTasks.find(t => this.extractmiroNodeId(t) === miroTask.id);
+
+                //控制台打印检测id匹配结果以检查
+                //console.log('miroTask.id',miroTask.id)
+
+                existTasks.push(this._extractTaskTitle(existingNotionTask))
+
+
+
+
+                let { modifiedAt } = await this.getTaskLastModifiedAt(miroTask.id);
+
+                if (existingNotionTask) {
+                    if (!miroTask) {
+                        await this.deleteNotionTask(existingNotionTask.id);
+                        await this.deleteTaskLastModifiedAt(miroTask.id);
+                        console.log(`Deleted Notion Task: ${existingNotionTask.properties.title}`);
+                    } else {
+                        if (modifiedAt === null) {
+                            await this.updateTaskLastModifiedAt(miroTask.id, miroTask.modifiedAt);
+                            modifiedAt = miroTask.modifiedAt;
+                            console.log(`Created database record for Miro Task: ${miroTask.pureTitle}`);
+                        }
+                        if (new Date(modifiedAt) < new Date(miroTask.modifiedAt)) {
+                            await this.updateNotionTask(existingNotionTask.id, miroTask);
+                            await this.updateTaskLastModifiedAt(miroTask.id, miroTask.modifiedAt);
+                            console.log(`Updated Notion Task: ${existingNotionTask.properties.title}`);
+                        }
+                    }
+                } else if (miroTask) {
+                    await this.createNotionTask(miroTask, this.NotionDatabaseId);
+                    if (modifiedAt === null) {
+                        await this.updateTaskLastModifiedAt(miroTask.id, miroTask.modifiedAt);
+                        console.log(`Created database record for Miro Task: ${miroTask.pureTitle}`);
+                    }
+                    console.log(`Created Notion Task: `, miroTask.text);
+                }
+            }
+
+            console.log('existingNotionTask',existTasks.join('\n'))
+
+            // 删除失效任务
+            for (const notionTask of notionTasks) {
+                const miroNodeId = this.extractmiroNodeId(notionTask);
+
+                // Skip if there is no miroNodeId
+                if (!miroNodeId) {
+                    continue;
+                }
+
+                const correspondingMiroTask = miroTasks.find(t => t.id === miroNodeId);
+
+                // Delete the Notion task if there is no corresponding Miro task
+                if (!correspondingMiroTask) {
+                    await this.deleteNotionTask(notionTask.id);
+                    await this.deleteTaskLastModifiedAt(miroNodeId);
+                    console.log(`Deleted Notion Task: ${_extractTaskTitle(notionTask)}`);
+                    continue;
+                }
+            }
+
+        } catch (error) {
+            console.error(error);
+        }
+    }
+    
+    async getTaskLastModifiedAt(taskId) {
+        return new Promise((resolve, reject) => {
+            this.db.get(`SELECT * FROM MiroTasksUpdateRecord WHERE id = ?`, [taskId], (err, row) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve(row || { id: taskId, modifiedAt: null });
+            });
+        });
+    }
+
+    async updateTaskLastModifiedAt(taskId, modifiedAt) {
+        return new Promise((resolve, reject) => {
+            this.db.run(`REPLACE INTO MiroTasksUpdateRecord (id, modifiedAt) VALUES (?, ?)`, [taskId, modifiedAt], function (err) {
+                if (err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        });
+    }
+
+    async deleteTaskLastModifiedAt(taskId) {
+        return new Promise((resolve, reject) => {
+            this.db.run(`DELETE FROM MiroTasksUpdateRecord WHERE id = ?`, [taskId], function (err) {
+                if (err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        });
+    }
+
+    async getNotionTasks(databaseId) {
+        // 使用Notion SDK获取所有任务
+        const response = await this.notionClient.databases.query({
+            database_id: databaseId,
+        });
+
+        return response.results;
+    }
+
+    //测试
+    /*
+    const { notionClient,Jsserve,axios,moment,path} = require('./libraries');
+    getNotionTasks=async function(databaseId) {
+        // 使用Notion SDK获取所有任务
+        const response = await notionClient.databases.query({
+            database_id: databaseId,
+        });
+
+        return response.results;
+    }
+    //测试代码
+    getNotionTasks(process.env.NOTION_TASKS_DATABASE_ID).then(x=>console.log(x))
+    */
+
+    _mapTaskToNotionProperties(miroTask) {
+        // 生成日期
+        let pDue = this._convertToNotionDate(miroTask.actionStartDate, miroTask.actionEndDate);
+        if (!pDue.date.end) { delete pDue.date.end; }
+        let p = {};
+        if (pDue) {
+            p = { Due: pDue };
+        }
+    
+        return {
+            ...p,
+            "Task name": {
+                title: [
+                    {
+                        text: {
+                            content: miroTask.pureTitle ?? miroTask.text,
+                        },
+                    },
+                ],
+            },
+            Status: {
+                status: {
+                    name: miroTask.status ?? 'Not Started', // 假设你有一个状态字段
+                },
+            },
+            /* 
+            Priority: {
+                select: {
+                    name: miroTask.priority ?? 'Medium', // 假设你有一个优先级字段
+                },
+            },
+            */
+            //附加miroNodeId
+            miroNodeId: {
+                rich_text: [
+                    {
+                        text: {
+                            content: miroTask.id,
+                        },
+                    },
+                ],
+            },
+            miroBoardName: {
+                rich_text: [
+                    {
+                        text: {
+                            content: miroTask.miroBoardName,
+                        },
+                    },
+                ],
+            },
+            miroBoardId: {
+                rich_text: [
+                    {
+                        text: {
+                            content: miroTask.miroBoardId,
+                        },
+                    },
+                ],
+            }
+        };
+    }
+    
+    async createNotionTask(miroTask, databaseId) {
+        // 使用Notion SDK创建一个新的任务
+        const properties = this._mapTaskToNotionProperties(miroTask);
+    
+        await this.notionClient.pages.create({
+            parent: { database_id: databaseId },
+            properties,
+            "icon": {
+                "type": "emoji",
+                "emoji": this._getProjectStatusEmoji(miroTask.tagStatus.目标 ?? '待办')
+            },
+        });
+    }
+    
+    async updateNotionTask(notionTaskId, miroTask) {
+        // 使用Notion SDK更新任务
+        const properties = this._mapTaskToNotionProperties(miroTask);
+    
+        await this.notionClient.pages.update({
+            page_id: notionTaskId,
+            properties,
+            "icon": {
+                "type": "emoji",
+                "emoji": this._getProjectStatusEmoji(miroTask.tagStatus.目标 ?? '待办')
+            },
+        });
+    }
+    
+
+    async deleteNotionTask(notionTaskId) {
+        // 使用 Notion SDK 归档任务
+        await this.notionClient.pages.update({
+            page_id: notionTaskId,
+            archived: true,
+        });
+    }
+
+
+
+    _generateMiroElementLink(miroElementId, miroBoardId) {
+        // 生成Miro元素的链接
+        return `https://miro.com/app/board/${miroBoardId}/?moveToWidget=${miroElementId}`;
+    }
+
+    //const moment = require('moment-timezone');
+    _getProjectStatusEmoji(status) {
+        let statusEmoji;
+      
+        switch (status) {
+          case '待办':
+            statusEmoji = '📌'; // 待办
+            break;
+          case '进行中':
+            statusEmoji = '⏳'; // 进行中
+            break;
+          case '完成':
+            statusEmoji = '✅'; // 完成
+            break;
+          case '失败':
+            statusEmoji = '❌'; // 失败
+            break;
+          case '放弃':
+            statusEmoji = '🚫'; // 放弃
+            break;
+          case '基本完成':
+            statusEmoji = '🔅'; // 基本完成
+            break;
+          default:
+            statusEmoji = '❓'; // 默认图标
+            break;
+        }
+      
+        return statusEmoji;
+      }
+
+      /*
+    _convertToNotionDate(startDateString, endDateString) {
+        // 如果开始日期和结束日期都为空，则返回 null
+        if (!startDateString) {
+            return null;
+        }
+    
+        const format = startDateString.includes(' ') ? 'YYYYMMDD HH:mm' : 'YYYYMMDD';
+        const startDateObj = moment.tz(startDateString, format, 'Asia/Shanghai');
+        const endDateObj = endDateString ? moment.tz(endDateString, format, 'Asia/Shanghai') : null;
+    
+        if (startDateObj.isValid()) {
+            const start = startDateObj.utc().format('YYYY-MM-DDTHH:mm:ss') + 'Z';
+    
+            if (endDateObj && endDateObj.isValid() && endDateObj.isSameOrAfter(startDateObj)) {
+                const end = endDateObj.utc().format('YYYY-MM-DDTHH:mm:ss') + 'Z';
+                return {
+                    type: 'date',
+                    date: {
+                        start,
+                        end,
+                        time_zone: 'Asia/Shanghai'
+                    }
+                };
+            } else {
+                return {
+                    type: 'date',
+                    date: {
+                        start,
+                        end: null,
+                        time_zone: 'Asia/Shanghai'
+                    }
+                };
+            }
+        } else {
+            return null;
+        }
+    }
+    */
+    _convertToNotionDate(startDateString, endDateString) {
+        // 如果开始日期和结束日期都为空，则返回 null
+        if (!startDateString) {
+            return null;
+        }
+    
+        const format = startDateString.includes(' ') ? 'YYYYMMDD HH:mm' : 'YYYYMMDD';
+        const startDateObj = moment.tz(startDateString, format, 'Asia/Shanghai');
+        const endDateObj = endDateString ? moment.tz(endDateString, format, 'Asia/Shanghai') : null;
+    
+        if (startDateObj.isValid()) {
+            const start = startDateString.includes(' ') ? startDateObj.format('YYYY-MM-DDTHH:mm:ss') + '+08:00' : startDateObj.format('YYYY-MM-DD');
+    
+            if (endDateObj && endDateObj.isValid() && endDateObj.isSameOrAfter(startDateObj)) {
+                const end = endDateString.includes(' ') ? endDateObj.format('YYYY-MM-DDTHH:mm:ss') + '+08:00' : endDateObj.format('YYYY-MM-DD');
+                return {
+                    type: 'date',
+                    date: {
+                        start,
+                        end
+                    }
+                };
+            } else {
+                return {
+                    type: 'date',
+                    date: {
+                        start,
+                        end: null
+                    }
+                };
+            }
+        } else {
+            return null;
+        }
+    }
+    
+}
+    
+
+module.exports = SynchronizerMiroNotionTasks ;
+
+// Sync.test
+
+
+const synchronizerMiroNotionTasks = new SynchronizerMiroNotionTasks ();
+
+synchronizerMiroNotionTasks.sync();```
     - Bigpicture类介绍
         - 以下是bigpicture类的说明
             - 有一个nodejs的bigpicture类,该类负责管理bigpicture的miro板块上的项目概览包括其中的项目概览卡片
@@ -787,450 +1227,4 @@ module.exports = {BigPicture,ProjectCard};
   modifiedAt: '2023-07-06T08:21:17Z',
   modifiedBy: { id: '3074457364464330478', type: 'user' }
 }```
-
-
-- 同步miro任务到notion任务集合的类
-    - ```javascript
-
-const sqlite3 = require('sqlite3').verbose();
-
-const BigPicture = require('./BigPicture').BigPicture;
-const Miro=require('./Miro')
-const Notion=require('./notion')
-
-
-const { notionClient,Jsserve,axios,moment,path,AiTitleMiro} = require('./libraries');
-
-
-class SynchronizerMiroNotionTasks {
-    constructor() {
-        // 确保只有一个实例被创建
-        /*
-        if (SynchronizerMiroNotionTasks.instance) {
-            return SynchronizerMiroNotionTasks.instance;
-        }
-        */
-        //this.MiroBoardId = MiroBoardId;
-        this.NotionDatabaseId = process.env.NOTION_TASKS_DATABASE_ID//NotionDatabaseId;
-        this.teamId = process.env.GOALS_TEAM_ID;
-        this.dbPath = process.env.DB_PATH;
-        this.Miro = Miro;
-        this.db = new sqlite3.Database(path.join(__dirname, process.env.DB_PATH));
-        this.db.run(`CREATE TABLE IF NOT EXISTS MiroTasksUpdateRecord (id TEXT PRIMARY KEY, modifiedAt TEXT)`);
-        this.notionClient = notionClient
-        /*
-        SynchronizerMiroNotionTasks.instance = this;
-        */
-    }
-
-    extractmiroNodeId(notionTask) {
-        try{
-            return notionTask.properties.miroNodeId.rich_text[0].plain_text
-
-        }
-        catch(e){
-            return null
-        }
-    }
-
-    _extractTaskTitle(notionTask) {
-        try{
-            return ((item) => {
-            if (item.properties['Task name'] && item.properties['Task name'].title && item.properties['Task name'].title[0]) {
-                let title = item.properties['Task name'].title[0].plain_text;
-                //console.log('title', title);
-                return title;
-            } else {
-                return 'N/A'; // 或者你可以选择返回任何其他默认值
-            }
-        })(notionTask)
-        }
-        catch(e){
-            return null
-        }
-    }
-
-    async sync() {
-        try {
-            const bigPicture = new BigPicture();
-
-            // 获取Miro中的所有任务
-            let miroTasks = await bigPicture.getInProgressProjectTasksByCard();
-
-            // 删除项目根节点
-            /*
-            const rootNode = miroTasks.find(node => node.node_type === 'root');
-            if (rootNode) {
-                const index = miroTasks.indexOf(rootNode);
-                miroTasks.splice(index, 1);
-            } */
-            miroTasks = miroTasks.filter(node => {
-                if (node.node_type === 'root') {
-                    let aititle=new AiTitleMiro(node.title)
-                    let pro=aititle.getProperties()
-                    let actionStartDate=pro.actionStartDate
-                    return actionStartDate
-                }
-                return true
-            });
-
-            // 获取Notion数据库中的所有任务
-            let notionTasks = await this.getNotionTasks(this.NotionDatabaseId);
-
-            //打印存在任务列表
-            let existTasks=[]
-
-            // 同步中的创建和更新
-            for (const miroTask of miroTasks) {
-                // 获取Notion对应的miroid的task
-
-
-
-
-                const existingNotionTask = notionTasks.find(t => this.extractmiroNodeId(t) === miroTask.id);
-
-                //控制台打印检测id匹配结果以检查
-                //console.log('miroTask.id',miroTask.id)
-
-                existTasks.push(this._extractTaskTitle(existingNotionTask))
-
-
-
-
-                let { modifiedAt } = await this.getTaskLastModifiedAt(miroTask.id);
-
-                if (existingNotionTask) {
-                    if (!miroTask) {
-                        await this.deleteNotionTask(existingNotionTask.id);
-                        await this.deleteTaskLastModifiedAt(miroTask.id);
-                        console.log(`Deleted Notion Task: ${existingNotionTask.properties.title}`);
-                    } else {
-                        if (modifiedAt === null) {
-                            await this.updateTaskLastModifiedAt(miroTask.id, miroTask.modifiedAt);
-                            modifiedAt = miroTask.modifiedAt;
-                            console.log(`Created database record for Miro Task: ${miroTask.pureTitle}`);
-                        }
-                        if (new Date(modifiedAt) < new Date(miroTask.modifiedAt)) {
-                            await this.updateNotionTask(existingNotionTask.id, miroTask);
-                            await this.updateTaskLastModifiedAt(miroTask.id, miroTask.modifiedAt);
-                            console.log(`Updated Notion Task: ${existingNotionTask.properties.title}`);
-                        }
-                    }
-                } else if (miroTask) {
-                    await this.createNotionTask(miroTask, this.NotionDatabaseId);
-                    if (modifiedAt === null) {
-                        await this.updateTaskLastModifiedAt(miroTask.id, miroTask.modifiedAt);
-                        console.log(`Created database record for Miro Task: ${miroTask.pureTitle}`);
-                    }
-                    console.log(`Created Notion Task: `, miroTask.text);
-                }
-            }
-
-            console.log('existingNotionTask',existTasks.join('\n'))
-
-            // 删除失效任务
-            for (const notionTask of notionTasks) {
-                const miroNodeId = this.extractmiroNodeId(notionTask);
-
-                // Skip if there is no miroNodeId
-                if (!miroNodeId) {
-                    continue;
-                }
-
-                const correspondingMiroTask = miroTasks.find(t => t.id === miroNodeId);
-
-                // Delete the Notion task if there is no corresponding Miro task
-                if (!correspondingMiroTask) {
-                    await this.deleteNotionTask(notionTask.id);
-                    await this.deleteTaskLastModifiedAt(miroNodeId);
-                    console.log(`Deleted Notion Task: ${_extractTaskTitle(notionTask)}`);
-                    continue;
-                }
-            }
-
-        } catch (error) {
-            console.error(error);
-        }
-    }
-    
-    async getTaskLastModifiedAt(taskId) {
-        return new Promise((resolve, reject) => {
-            this.db.get(`SELECT * FROM MiroTasksUpdateRecord WHERE id = ?`, [taskId], (err, row) => {
-                if (err) {
-                    reject(err);
-                }
-                resolve(row || { id: taskId, modifiedAt: null });
-            });
-        });
-    }
-
-    async updateTaskLastModifiedAt(taskId, modifiedAt) {
-        return new Promise((resolve, reject) => {
-            this.db.run(`REPLACE INTO MiroTasksUpdateRecord (id, modifiedAt) VALUES (?, ?)`, [taskId, modifiedAt], function (err) {
-                if (err) {
-                    reject(err);
-                }
-                resolve();
-            });
-        });
-    }
-
-    async deleteTaskLastModifiedAt(taskId) {
-        return new Promise((resolve, reject) => {
-            this.db.run(`DELETE FROM MiroTasksUpdateRecord WHERE id = ?`, [taskId], function (err) {
-                if (err) {
-                    reject(err);
-                }
-                resolve();
-            });
-        });
-    }
-
-    async getNotionTasks(databaseId) {
-        // 使用Notion SDK获取所有任务
-        const response = await this.notionClient.databases.query({
-            database_id: databaseId,
-        });
-
-        return response.results;
-    }
-
-    //测试
-    /*
-    const { notionClient,Jsserve,axios,moment,path} = require('./libraries');
-    getNotionTasks=async function(databaseId) {
-        // 使用Notion SDK获取所有任务
-        const response = await notionClient.databases.query({
-            database_id: databaseId,
-        });
-
-        return response.results;
-    }
-    //测试代码
-    getNotionTasks(process.env.NOTION_TASKS_DATABASE_ID).then(x=>console.log(x))
-    */
-
-    _mapTaskToNotionProperties(miroTask) {
-        // 生成日期
-        let pDue = this._convertToNotionDate(miroTask.actionStartDate, miroTask.actionEndDate);
-        if (!pDue.date.end) { delete pDue.date.end; }
-        let p = {};
-        if (pDue) {
-            p = { Due: pDue };
-        }
-    
-        return {
-            ...p,
-            "Task name": {
-                title: [
-                    {
-                        text: {
-                            content: miroTask.pureTitle ?? miroTask.text,
-                        },
-                    },
-                ],
-            },
-            Status: {
-                status: {
-                    name: miroTask.status ?? 'Not Started', // 假设你有一个状态字段
-                },
-            },
-            /* 
-            Priority: {
-                select: {
-                    name: miroTask.priority ?? 'Medium', // 假设你有一个优先级字段
-                },
-            },
-            */
-            //附加miroNodeId
-            miroNodeId: {
-                rich_text: [
-                    {
-                        text: {
-                            content: miroTask.id,
-                        },
-                    },
-                ],
-            },
-            miroBoardName: {
-                rich_text: [
-                    {
-                        text: {
-                            content: miroTask.miroBoardName,
-                        },
-                    },
-                ],
-            },
-            miroBoardId: {
-                rich_text: [
-                    {
-                        text: {
-                            content: miroTask.miroBoardId,
-                        },
-                    },
-                ],
-            }
-        };
-    }
-    
-    async createNotionTask(miroTask, databaseId) {
-        // 使用Notion SDK创建一个新的任务
-        const properties = this._mapTaskToNotionProperties(miroTask);
-    
-        await this.notionClient.pages.create({
-            parent: { database_id: databaseId },
-            properties,
-            "icon": {
-                "type": "emoji",
-                "emoji": this._getProjectStatusEmoji(miroTask.tagStatus.目标 ?? '待办')
-            },
-        });
-    }
-    
-    async updateNotionTask(notionTaskId, miroTask) {
-        // 使用Notion SDK更新任务
-        const properties = this._mapTaskToNotionProperties(miroTask);
-    
-        await this.notionClient.pages.update({
-            page_id: notionTaskId,
-            properties,
-            "icon": {
-                "type": "emoji",
-                "emoji": this._getProjectStatusEmoji(miroTask.tagStatus.目标 ?? '待办')
-            },
-        });
-    }
-    
-
-    async deleteNotionTask(notionTaskId) {
-        // 使用 Notion SDK 归档任务
-        await this.notionClient.pages.update({
-            page_id: notionTaskId,
-            archived: true,
-        });
-    }
-
-
-
-    _generateMiroElementLink(miroElementId, miroBoardId) {
-        // 生成Miro元素的链接
-        return `https://miro.com/app/board/${miroBoardId}/?moveToWidget=${miroElementId}`;
-    }
-
-    //const moment = require('moment-timezone');
-    _getProjectStatusEmoji(status) {
-        let statusEmoji;
-      
-        switch (status) {
-          case '待办':
-            statusEmoji = '📌'; // 待办
-            break;
-          case '进行中':
-            statusEmoji = '⏳'; // 进行中
-            break;
-          case '完成':
-            statusEmoji = '✅'; // 完成
-            break;
-          case '失败':
-            statusEmoji = '❌'; // 失败
-            break;
-          case '放弃':
-            statusEmoji = '🚫'; // 放弃
-            break;
-          case '基本完成':
-            statusEmoji = '🔅'; // 基本完成
-            break;
-          default:
-            statusEmoji = '❓'; // 默认图标
-            break;
-        }
-      
-        return statusEmoji;
-      }
-
-      /*
-    _convertToNotionDate(startDateString, endDateString) {
-        // 如果开始日期和结束日期都为空，则返回 null
-        if (!startDateString) {
-            return null;
-        }
-    
-        const format = startDateString.includes(' ') ? 'YYYYMMDD HH:mm' : 'YYYYMMDD';
-        const startDateObj = moment.tz(startDateString, format, 'Asia/Shanghai');
-        const endDateObj = endDateString ? moment.tz(endDateString, format, 'Asia/Shanghai') : null;
-    
-        if (startDateObj.isValid()) {
-            const start = startDateObj.utc().format('YYYY-MM-DDTHH:mm:ss') + 'Z';
-    
-            if (endDateObj && endDateObj.isValid() && endDateObj.isSameOrAfter(startDateObj)) {
-                const end = endDateObj.utc().format('YYYY-MM-DDTHH:mm:ss') + 'Z';
-                return {
-                    type: 'date',
-                    date: {
-                        start,
-                        end,
-                        time_zone: 'Asia/Shanghai'
-                    }
-                };
-            } else {
-                return {
-                    type: 'date',
-                    date: {
-                        start,
-                        end: null,
-                        time_zone: 'Asia/Shanghai'
-                    }
-                };
-            }
-        } else {
-            return null;
-        }
-    }
-    */
-    _convertToNotionDate(startDateString, endDateString) {
-        // 如果开始日期和结束日期都为空，则返回 null
-        if (!startDateString) {
-            return null;
-        }
-    
-        const format = startDateString.includes(' ') ? 'YYYYMMDD HH:mm' : 'YYYYMMDD';
-        const startDateObj = moment.tz(startDateString, format, 'Asia/Shanghai');
-        const endDateObj = endDateString ? moment.tz(endDateString, format, 'Asia/Shanghai') : null;
-    
-        if (startDateObj.isValid()) {
-            const start = startDateString.includes(' ') ? startDateObj.format('YYYY-MM-DDTHH:mm:ss') + '+08:00' : startDateObj.format('YYYY-MM-DD');
-    
-            if (endDateObj && endDateObj.isValid() && endDateObj.isSameOrAfter(startDateObj)) {
-                const end = endDateString.includes(' ') ? endDateObj.format('YYYY-MM-DDTHH:mm:ss') + '+08:00' : endDateObj.format('YYYY-MM-DD');
-                return {
-                    type: 'date',
-                    date: {
-                        start,
-                        end
-                    }
-                };
-            } else {
-                return {
-                    type: 'date',
-                    date: {
-                        start,
-                        end: null
-                    }
-                };
-            }
-        } else {
-            return null;
-        }
-    }
-    
-}
-    
-
-module.exports = SynchronizerMiroNotionTasks ;
-
-// Sync.test
-
-
-const synchronizerMiroNotionTasks = new SynchronizerMiroNotionTasks ();
-
-synchronizerMiroNotionTasks.sync();```
+    - 
